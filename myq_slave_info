@@ -1,0 +1,252 @@
+#!/usr/bin/env perl
+
+# Copyright (c) 2008 Yahoo! Inc.  All rights reserved.  The copyrights 
+# embodied in the content of this file are licensed by Yahoo! Inc.  
+# under the BSD (revised) open source license
+
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin";
+
+use MySQL_Script_Utils;
+
+sub GetRecords ($)
+{   
+    my( $lines ) = @_;
+        
+    my @records;
+    
+    my $record;
+    foreach my $line (@$lines) {
+        chomp $line;
+        if( $line =~ m/^\*\*\*\*\*\*\*\*\*\*\*\*/ ) {
+            if( defined( $record )) {
+                push( @records, $record );
+            }
+            my %hash;
+            $record = \%hash;
+            next;
+        }
+        die "Bad parsing: $line\n" if( !defined $record );
+
+        if( $line =~ m/\s*(\w+):\s(.*)$/ ) {
+            $record->{$1} = $2;
+        } else {
+            #die "Bad parsing: $line\n";
+        }
+    }
+
+    return \@records;
+}
+
+my $HOSTFILE = '';
+my $REPEAT = 0;
+my $REPEAT_TIME = 10;
+my $QUIET = 0;
+
+my %options = (
+    'H=s' => \$HOSTFILE,
+    'r' => \$REPEAT,
+    'q' => \$QUIET,
+    't=i' => \$REPEAT_TIME,
+);
+
+if( !&parse_options( \%options ) or $#ARGV > 0 ) {
+    print STDERR <<USAGE;
+myq_slave_info $DEFAULT_OPTIONS_STRING [-H hostfile] [-q] [-r [-t <secs>]] 
+USAGE
+    exit;
+}
+
+my @hosts;
+
+push( @hosts, $HOST ) if( $HOST ne '' );
+
+if( $HOSTFILE ne '' ) {
+    die "Can't read host file: $HOSTFILE\n" if( !-r $HOSTFILE );
+
+    my @lines = `cat $HOSTFILE`;
+    foreach my $line( @lines ) {
+        next if( $line =~ m/^#/ );
+        chop $line;
+        push( @hosts, $line );
+    }
+}
+
+push( @hosts, '' ) if( $#hosts == -1 );
+
+do {
+    foreach my $host( @hosts ) {
+        my $output = &mysql_call( "SHOW SLAVE STATUS\\G", $host );
+
+        my %slave_status;
+        my $last_key = '';
+
+        foreach my $line( @$output ) {
+            chop $line;
+
+            if( $line =~ m/^\s*(\w+):\s(.*)$/ ) {
+                $slave_status{lc $1} = $2;
+                $last_key = $1;
+            } elsif( $last_key eq 'last_error' ) {
+                $slave_status{last_error} .= $line;
+            }
+        }
+        $slave_status{last_error} =~ s/\s{2,}//g;
+
+        # Filter out binary data in the CompressedContents Field
+        $slave_status{last_error} =~ s/CompressedContents.*$/CompressedContents=(gobbeldygook)/g; 
+
+        foreach my $key( keys %slave_status ) {
+            #print "$key => $slave_status{$key}\n";
+        }
+
+        if( !$QUIET ) {
+            print "    Replicating from:\t\t";
+        } else {
+            my $short_host = $host;
+            $short_host = '127.0.0.1' if( $host eq '' );
+            #$short_host =~ s/\.\w+\.\w+$//g;
+            my $date = `date +%I:%M:%S`;
+            chop $date;
+            print $date . " ";
+            print "$short_host -> ";
+        }
+
+        my $no_repl = 0;
+
+        if( $slave_status{master_host} ne '' and
+            $slave_status{master_host} ne 'nothing' and
+            $slave_status{master_host} ne 'noslavehost' )
+        {
+
+            # Assumes the credentials are the same for the master (valid?)
+            my $master_port = '';
+            if( $slave_status{master_port} ) {
+                $master_port = ' --port=' . $slave_status{master_port};
+            }
+            my $master_host = $slave_status{master_host};
+            if( $slave_status{master_host} eq '127.0.0.1' and $host ne '' ) {
+                #  We are remote, but we need to check using the slave's
+                #  hostname instead
+                $master_host = $host;
+            }
+
+            my $output = &mysql_call( "SHOW MASTER STATUS\\G", $master_host, $master_port );
+
+            my %master_status;
+            foreach my $line( @$output ) {
+                chop $line;
+
+                # This doesn't seem to handle the case of Last_error having a ':' in
+                # it
+                if( $line =~ m/^\s*(\w+):\s(.*)$/ ) {
+                    $master_status{lc $1} = $2;
+                }
+            }
+
+            my $master_host = $slave_status{master_host};
+            print $master_host;
+            if( $slave_status{master_port} ne '3306' ) {
+                print ":" . $slave_status{master_port};
+            }
+
+            if( !$QUIET ) {
+                print "\n";
+
+                print "    Master:\t\t\t" . $master_status{file} . "/" .
+                    $master_status{position} . "\n";
+            }
+
+
+            my $io_diff = '???';
+            if( $master_status{file} eq $slave_status{master_log_file} ) {
+                $io_diff = &format_memory( 
+                    $master_status{position} -
+                    $slave_status{read_master_log_pos} );
+            }
+
+            if( !$QUIET ) {
+                print "    Slave I/O:\t\t" .  $slave_status{slave_io_running} . 
+                    "\t" .  $slave_status{master_log_file} . "/" .
+                    $slave_status{read_master_log_pos} . "\t$io_diff\n";
+            } else {
+                print "/$io_diff";
+                print "!" if( $slave_status{slave_io_running} eq 'No' );
+            }
+
+
+            my $relay_diff = '???';
+            if( $slave_status{master_log_file} eq
+                $slave_status{relay_master_log_file} )
+            {
+                $relay_diff = &format_memory( 
+                    $slave_status{read_master_log_pos} - 
+                    $slave_status{exec_master_log_pos} );
+            }
+
+            if( !$QUIET ) {
+                print "    Slave Relay:\t" .  $slave_status{slave_sql_running} . 
+                    "\t" .  $slave_status{relay_master_log_file} . "/" .
+                    $slave_status{exec_master_log_pos} . "\t$relay_diff\n";
+            } else {
+                print "/$relay_diff";
+                print "!" if( $slave_status{slave_sql_running} eq 'No' );
+            }
+
+            if( $slave_status{slave_sql_running} eq 'No' or
+                $slave_status{slave_io_running} eq 'No' ) 
+            {
+                if( !$QUIET ) {
+                    print "    Slave Errorno:\t\t" . $slave_status{last_errno} . "\n";
+                    print "    Slave Error:\t\t" . $slave_status{last_error} . "\n";
+                }
+            }
+        } else {
+            print "Nowhere";
+            $no_repl = 1;
+        }
+
+        unless( $no_repl ) {
+            my $special_query = &mysql_call( "show processlist\\G", $host );
+            my $processes = GetRecords( $special_query );
+
+            my $t = -1;
+            my $io_caught_up = 0;
+            my $sql_caught_up = 0;
+            foreach my $process (@$processes) {
+                if ($process->{User} eq "system user") {
+                    &print_debug(  $process->{User} . '/' . $process->{State} . '/' .  $process->{Time} );
+                    if ($process->{State} =~ /Waiting for master/) {
+                        $io_caught_up = 1;
+                    } elsif ($process->{State} !~ /master/) {
+                        $t = $process->{Time};
+                        if ($process->{State} =~ /read all relay log/) {
+                            $sql_caught_up = 1;
+                        }
+                    }
+                }
+            }
+            if ($io_caught_up && $sql_caught_up) {
+                $t = 0;
+            }
+            print "  $t secs";
+
+
+            #if( $slave_status{Seconds_Behind_Master} eq '' ) {
+            #} else {
+                #if( !$self->{args}->{q} ) {
+                    #print "    Seconds Behind: \t\t" . 
+                        #$slave_status{Seconds_Behind_Master} . "\n";
+                #} else {
+                    #print "  " . $slave_status{Seconds_Behind_Master} . " secs";
+                #}
+            #}
+        }
+
+        print "\n";
+    }
+    sleep $REPEAT_TIME if( $REPEAT );
+} while( $REPEAT );
+

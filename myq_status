@@ -1,0 +1,488 @@
+#!/usr/bin/env perl
+
+# Copyright (c) 2008 Yahoo! Inc.  All rights reserved.  The copyrights 
+# embodied in the content of this file are licensed by Yahoo! Inc.  
+# under the BSD (revised) open source license
+
+use strict;
+
+use FindBin;
+use lib "$FindBin::Bin";
+
+use MySQL_Script_Utils;
+
+use vars qw/ @ARGV $yinst_settings $TIMEOUT $status $prev_status /;
+
+sub parse_status {
+    my( $output ) = @_;
+    
+    my %status;
+    
+    foreach my $line( @$output ) {
+        next if( $line =~ m/^Variable_name/ );
+
+        $line =~ m/^(.*)\t(.*)$/;
+        $status{lc $1} = $2;
+    }
+
+    $status{time_run} = time;
+
+    return \%status;
+}
+
+sub counter_diff {
+    my( $key ) = @_;
+
+    return $status->{$key} . '!'
+        if( !defined( $prev_status ));
+
+    return $status->{$key} -
+        $prev_status->{$key};
+}
+
+sub counter_per_second {
+    my( $key ) = @_;
+
+    my $diff = &counter_diff( $key );
+    return $diff if( !defined( $prev_status ));
+
+    my $seconds = $status->{time_run} -
+        $prev_status->{time_run};
+
+    die "Invalid time? \n" if( $seconds <= 0 );
+
+    return  $diff / $seconds;
+}
+
+sub counter_percent {
+    my( $key1, $key2 ) = @_;
+
+    return 0 if( !defined( $prev_status ));
+
+    my $diff1 = &counter_diff( $key1 );
+    my $diff2 = &counter_diff( $key2 );
+
+    return $diff1 / $diff2;
+}
+
+
+
+my $MODE = 'one';
+my $REPEAT_TIME = 60;
+
+my $password_on = grep( /-p/, @ARGV );
+
+my %options = (
+    't=i' => \$REPEAT_TIME,
+);
+my $usage = <<USAGE;
+myq_status $DEFAULT_OPTIONS_STRING [-t <secs>] [myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|commands|qcache|cttf|throughput|query|temp|handler]
+
+Mode must be one of 'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io', 'innodb_log', 'innodb_row', 'commands', 'qcache', 'cttf', 'throughput', 'query', 'temp', 'handler'
+USAGE
+
+if( !&parse_options( \%options ) or $#ARGV > 0 ) {
+    print STDERR $usage;
+    exit;
+}
+
+$MODE = shift @ARGV if( $#ARGV == 0 );
+
+die $usage if( $MODE !~ m/myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|commands|qcache|cttf|throughput|query|temp|handler/ );
+
+die "Repeat time must be at least 1 seconds\n" if( $REPEAT_TIME < 1 );
+
+
+my $cache_file = "/tmp/myq_status_$HOST";
+my $count = 0;
+my $lines_per_header = 15;;
+LOOP: while( 1 ) {
+    my $start_time = time;
+    my @array;
+    my $output = \@array;
+
+    $output = &mysql_call( "SHOW /*!50002 GLOBAL */ STATUS" );
+    $status = &parse_status( $output );
+    my $variables = &parse_status( &mysql_call( "SHOW VARIABLES" ));
+
+    foreach my $key( keys %$status ) {
+        &print_debug( "$key => " . $status->{$key}  );
+    }
+
+    #foreach my $key( sort keys %$status ) {
+        #print "$key => " . $status->{$key} . "\n";
+    #}
+
+    my $pretty_time = `date '+\%H:\%M:\%S'`;
+    chop $pretty_time;
+
+    if( $MODE eq 'myisam' ) {
+        printf( "row      %-19s %-5s %-4s \n",
+            'Queries (/sec)',
+            'Table',
+            'Key Buffer',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 5s % 5s % 7s % 5s % 5s % 4s \n",
+            'sel', 'ins', 'upd', 'del',
+            'lock',
+            'full', 'used', 'dirt',
+            'rmiss', 'wmiss', 
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 7s % 4s % 4s % 4s ",
+            $pretty_time, 
+            &format_number( &counter_per_second( 'com_select' ), 1, 4 ),
+            &format_number( &counter_per_second( 'com_insert' ), 1, 4 ),
+            &format_number( &counter_per_second( 'com_update' ), 1, 4 ),
+            &format_number( &counter_per_second( 'com_delete' ), 1, 4 ),
+
+            &format_percent( &counter_diff( 'table_locks_waited' ), 
+                &counter_diff( 'table_locks_immediate' ) + 
+                &counter_diff( 'table_locks_waited' )),
+
+
+            &format_percent( $status->{key_blocks_used}, 
+                $status->{key_blocks_unused} + $status->{key_blocks_used} ),
+
+            &format_memory( $status->{key_blocks_used} *
+                $variables->{key_cache_block_size} ),
+
+            &format_percent( $status->{key_blocks_not_flushed}, 
+                $status->{key_blocks_used} ),
+
+            &format_percent( &counter_diff( 'key_reads'), &counter_diff( 'key_read_requests' )),
+            &format_percent( &counter_diff( 'key_writes'), &counter_diff( 'key_write_requests' )),
+
+        );
+    } elsif( $MODE eq 'commands' ) {
+        printf( "row      %-19s \n",
+            'Total Commands '
+        ) if( $count % $lines_per_header == 0 );
+
+        printf( "%s % 4s ",
+            $pretty_time,
+            &format_number( &counter_diff( 'questions' ), 1, 4 ),
+        );
+        
+        my @commands = keys %$status;
+        my %run_cmds;
+        foreach my $command( @commands ) {
+            next if( $command !~ m/^com_(.*)$/ );
+
+            my $short = $1;
+
+            my $value = &counter_diff( $command );
+            if( $value > 0 ) {
+                if( defined( $run_cmds{$value} )) {
+                    my $arr = $run_cmds{$value};
+                    push( @$arr, $short );
+                    $run_cmds{$value} = $arr;
+                } else{
+                    my @arr = ( $short );
+                    $run_cmds{$value} = \@arr;
+                }
+            }
+
+        }
+        foreach my $value( sort { $b <=> $a } (keys %run_cmds) ) {
+            my $arr = $run_cmds{$value};
+            foreach my $cmd( @$arr ) {
+                print $cmd  . "(" . &format_number( $value, 1, 4 ) . ") ";
+            }
+        }
+    } elsif( $MODE eq 'qcache' ) {
+        printf( "row      %-19s %-17s %-4s \n",
+            'Query Cache Info'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 6s % 4s % 4s % 5s % 4s % 5s % 4s % 5s % 4s % 4s % 5s % 7s \n",
+            'type', 'sel', 'hits', '%hits', 'ins', '%ins', 'notc', '%notc', 'tot', 'lowm',
+            'full', 'free'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 6s % 4s % 4s % 5s % 4s % 5s % 4s % 4s % 4s % 4s % 5s % 7s ",
+            $pretty_time, 
+            $variables->{query_cache_type},
+            &format_number( &counter_per_second( 'qcache_hits' ) +
+                &counter_per_second( 'com_select' ), 1, 4 ),
+            &format_number( &counter_per_second( 'qcache_hits' ), 1, 4 ),
+            &format_percent( &counter_diff( 'qcache_hits' ),
+                &counter_diff( 'com_select' ) + &counter_diff( 'qcache_hits' ) ),
+            &format_number( &counter_per_second( 'qcache_inserts' ), 1, 4 ),
+            &format_percent( &counter_diff( 'qcache_inserts' ),
+                &counter_diff( 'com_select' ) + &counter_diff( 'qcache_hits' ) ),
+            &format_number( &counter_per_second( 'qcache_not_cached' ), 1, 4 ),
+            &format_percent( &counter_diff( 'qcache_not_cached' ),
+                &counter_diff( 'com_select' ) + &counter_diff( 'qcache_hits' ) ),
+            &format_number( $status->{'qcache_queries_in_cache'}, 1, 4 ),
+            &format_number( &counter_per_second( 'qcache_lowmem_prunes' ), 1, 4 ),
+
+            &format_percent( $status->{qcache_total_blocks} - $status->{qcache_free_blocks}, 
+                $status->{qcache_total_blocks} ),
+
+            &format_memory( $status->{qcache_free_memory} ),
+
+
+        );
+    } elsif( $MODE eq 'cttf' ) {
+        printf( "row      %-9s %-29s %-15s %-9s\n",
+            'Connects',
+            'Threads',
+            'Tables',
+            'Files',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 5s % 4s\n",
+            'cons', 'acns',
+            'conn', 'run', 'cach', 'crtd', 'slow', 'acls',
+            'open', 'opns', '%opn', 
+            'open'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( &counter_per_second( 'connections' ), 1, 4 ),
+            &format_number( &counter_per_second( 'aborted_connects' ), 1, 4 ),
+
+            &format_number( $status->{'threads_connected'}, 0, 4 ),
+            &format_number( $status->{'threads_running'}, 0, 4 ),
+            &format_number( $status->{'threads_cached'}, 0, 4 ),
+            &format_number( &counter_per_second( 'threads_created' ), 1, 4 ),
+            &format_number( &counter_per_second( 'slow_launch_threads' ), 1, 4 ),
+            &format_number( &counter_per_second( 'aborted_clients' ), 1, 4 ),
+
+            &format_number( $status->{'open_tables'}, 0, 4 ),
+            &format_number( &counter_per_second( 'opened_tables' ), 1, 4 ),
+            &format_percent( $status->{'open_tables'}, $variables->{'table_cache'} ),
+
+            &format_number( $status->{'open_files'}, 0, 4 ),
+
+        );
+    } elsif( $MODE eq 'throughput' ) {
+        printf( "row      %-9s \n",
+            'Throughput (bytes)',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 7s % 7s \n",
+            'recv', 'sent',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 7s % 7s ",
+            $pretty_time, 
+            &format_memory( &counter_diff( 'bytes_received' )),
+            &format_memory( &counter_diff( 'bytes_sent' )),
+        );
+    } elsif( $MODE eq 'query' ) {
+        printf( "row      %-5s %-23s %-10s\n",
+            ' ', 'Select', 'Sort'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
+            'slow', 
+            'fjn', 'frjn', 'rang', 'rchk', 'scan', 
+            'pass', 'rang', 'rows', 'scan',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( &counter_diff( 'slow_queries' )),
+
+            &format_number( &counter_diff( 'select_full_join' )),
+            &format_number( &counter_diff( 'select_full_range_join' )),
+            &format_number( &counter_diff( 'select_range' )),
+            &format_number( &counter_diff( 'select_range_check' )),
+            &format_number( &counter_diff( 'select_scan' )),
+            &format_number( &counter_diff( 'select_scan' )),
+
+            &format_number( &counter_diff( 'sort_merge_passes' )),
+            &format_number( &counter_diff( 'sort_range' )),
+            &format_number( &counter_diff( 'sort_rows' )),
+            &format_number( &counter_diff( 'sort_scan' )),
+
+
+        );
+    } elsif( $MODE eq 'temp' ) {
+        printf( "row      %-5s %-23s %-10s\n",
+            'Temporary Tables'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
+            'tmps', 'disk', 'files',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( &counter_per_second( 'created_tmp_tables' ), 1, 4 ),
+            &format_number( &counter_per_second( 'created_tmp_disk_tables' ), 1, 4 ),
+            &format_number( &counter_per_second( 'created_tmp_files' ), 1, 4 ),
+        );
+    } elsif( $MODE eq 'handler' ) {
+        printf( "row      %-5s %-23s %-10s\n",
+            'Handler'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
+            'comm', 'disc', 'del', 'rfir', 'rkey', 'rnex', 'rprv', 'rnd', 'rndn',
+            'rlbk', 'upd', 'wrte'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( &counter_per_second( 'handler_commit' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_discover' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_delete' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_read_first' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_read_key' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_read_next' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_read_prev' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_read_rnd' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_read_rnd_next' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_rollback' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_update' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_write' ), 1, 4 ),
+        );
+    } elsif( $MODE eq 'innodb' ) {
+        printf( "Innodb   %-19s %-37s %-14s \n",
+            'Operations (rows)',
+            'Buffer Pool (pages)',
+            'Data (ios)',
+            'Log (ios)',
+            'Wait',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 5s % 4s % 5s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
+            'read', 'ins', 'upd', 'del', 'new', 'read', '%phy', 'wrte', '%phy',
+            '%dirt', 'wait', 
+            'rops', 'rsize', 'wops', 'wsize', 'fsyc',
+            'wrte', 'fsyc',
+            'wait', 'time'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 5s % 4s % 5s % 5s % 4s % 4s % 5s % 4s % 5s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( &counter_per_second( 'innodb_rows_read' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_rows_inserted' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_rows_updated' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_rows_deleted' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_created' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_requests' ), 1, 4 ),
+            &format_percent( &counter_diff( 'innodb_buffer_pool_reads' ), 
+                &counter_diff( 'innodb_buffer_pool_read_requests' )),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_write_requests' ), 1, 4 ),
+            &format_percent( &counter_diff( 'innodb_buffer_pool_pages_flushed' ), 
+                &counter_diff( 'innodb_buffer_pool_write_requests' )),
+            &format_percent( 
+                $status->{'innodb_buffer_pool_pages_dirty'}, 
+                $status->{'innodb_buffer_pool_pages_total'} 
+            ),
+
+            &format_number( &counter_per_second( 'innodb_buffer_pool_wait_free' ), 1, 4 ),
+
+            &format_number( &counter_per_second( 'innodb_data_reads' ), 1, 4 ),
+            &format_memory( &counter_per_second( 'innodb_data_read' ), 2, 5 ),
+            &format_number( &counter_per_second( 'innodb_data_writes' ), 1, 4 ),
+            &format_memory( &counter_per_second( 'innodb_data_written' ), 2, 5 ),
+            &format_number( &counter_per_second( 'innodb_data_fsyncs' ), 1, 4 ),
+
+            &format_number( &counter_per_second( 'innodb_log_writes' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_os_log_fsyncs' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_row_lock_waits' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_row_lock_time' ), 1, 4 ),
+        );
+    } elsif( $MODE eq 'innodb_buffer_pool' ) {
+        printf( "Innodb Buffer Pool                     %-9s %-9s %-4s %-5s \n",
+            'Rd Ahead',
+            'Reads',
+            'Wait',
+            'Writes'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
+            'data', 'dirt', 'free', 'ltch', 'misc', 'tot', 
+            'rand', 'seq',
+            'reqs', 'phys', 'free', 'reqs', 'flsh'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( $status->{'innodb_buffer_pool_pages_data'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_dirty'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_free'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_latched'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_misc'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_total'}, 1, 4 ),
+
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_rnd' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_seq' ), 1, 4 ),
+
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_requests' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_reads' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_wait_free' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_write_requests' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 4 ),
+        );
+    } elsif( $MODE eq 'innodb_io' ) {
+        printf( "Inno I/O %-24s %-14s %-29s %-10s\n",
+            'Reads',
+            'data',
+            'Writes',
+            'data'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
+            'reqs', 'rnd', 'seq', 'rds', 'read', 'pend', 'rds', 'read',
+            'reqs', 'pend', 'flsh', 'dbwr', 'dbpw', 'wrtn', 'pend', 'wrts', 'wrtn'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_requests' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_rnd' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_seq' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_reads' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_pages_read' ), 1, 4 ),
+
+            &format_number( &counter_per_second( 'innodb_data_pending_reads' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_data_reads' ), 1, 4 ),
+            &format_memory( &counter_per_second( 'innodb_data_read' ), 1, 4 ),
+
+
+            &format_number( &counter_per_second( 'innodb_buffer_pool_write_requests' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_data_pending_writes' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_dblwr_writes' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_dblwr_pages_written' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_pages_written' ), 1, 4 ),
+
+            &format_number( &counter_per_second( 'innodb_data_pending_writes' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_data_writes' ), 1, 4 ),
+            &format_memory( &counter_per_second( 'innodb_data_written' ), 1, 4 ),
+        );
+    } elsif( $MODE eq 'innodb_log' ) {
+        printf( "Inno Log      %-19s %-14s\n",
+            'Writes',
+            'Fsyncs',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s \n",
+            'wait', 'reqs', 'wrts', 'pend', 'wtn', 'pend', 'fsyn', 
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( &counter_per_second( 'innodb_log_waits' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_log_write_requests' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_log_writes' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_os_log_pending_writes' ), 1, 4 ),
+            &format_memory( &counter_per_second( 'innodb_os_log_written' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_os_log_pending_fsyncs' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_os_log_fsyncs' ), 1, 4 ),
+        );
+    } elsif( $MODE eq 'innodb_row' ) {
+        printf( "Inno Locks              %-19s\n",
+            "Time (ms)",
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s \n",
+            'cur', 'avg', 'tot', 'cur', 'avg', 'max', 'tot'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time, 
+            &format_number( $status->{'innodb_row_lock_current_waits'}, 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_row_lock_waits' ), 1, 4 ),
+            &format_number( $status->{'innodb_row_lock_waits'}, 1, 4 ),
+
+            &format_number( &counter_per_second( 'innodb_row_lock_time' ), 1, 4 ),
+            &format_number( $status->{'innodb_row_lock_time_avg'}, 1, 4 ),
+            &format_number( $status->{'innodb_row_lock_time_max'}, 1, 4 ),
+            &format_number( $status->{'innodb_row_lock_time'}, 1, 4 ),
+        );
+    }
+
+    print "\n";
+
+    my $end_time = time;
+    $prev_status = $status;
+
+    sleep $REPEAT_TIME;
+
+    $count++;
+} 

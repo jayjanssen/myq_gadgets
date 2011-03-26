@@ -1,0 +1,79 @@
+MySQL Gadgets
+
+Tools to help make life easier with MySQL.
+
+Note that you need to have some version of the mysql client, it's up to you to
+install it.  
+
+All gadgets take mysql command like options (-u,-p,-h,-P), run with --help to
+see all options.
+
+Gadgets:
+
+- myq_status:
+        Various views based on SHOW STATUS.  Check
+        http://dev.mysql.com/doc/refman/4.1/en/server-status-variables.html
+        for details on what these numbers mean.
+
+        Views:
+        'myisam' - myisam specific stats, including key buffer, lock waits
+        'commands' - Counts all 'Com_*' and outputs all commands run during
+            each interval sorted descending by number of occurances.  This
+            should be a good indication if something is running that you are
+            not aware of.
+        'qcache' - Info on query cache usage.
+        'cttf' - Connections, Threads, Tables, Files info.
+        'throughput' - Byes received/sent
+        'query' - useful for query tuning:  Shows the Select_* and Sort_*
+            metrics.  Refer to the mysql doc above for info on how to
+            interpret.
+        'temp' - Temporary table info.  
+        'handler' -- Table handler stats.  Good supplemental information to
+            use with the 'query' view above.a
+
+        Innodb views are based on the SHOW STATUS variables in 5.0 and up.
+        For earlier MySQL versions use 'myq_innodb_status'.
+        'innodb' - an innodb summary view that tries to give an overall
+            picture of the more important things happening in innodb.  
+        'innodb_buffer_pool' -- all status variables regarding the innodb
+            buffer pool.
+        'innodb_io' -- All things reading and writing, including buffer
+            pool,'pages', 'data', and 'dblwr'.
+        'innodb_log' -- all transaction log related status.  'Innodb_log*' and
+            'Innodb_os_log*'.
+        'innodb_row' -- 'Innodb_row_lock*'.
+
+
+- myq_innodb_status:  
+        like iostat for innodb, connects to mysql and parses the output of SHOW 
+        INNODB STATUS at intervals (defaults 60 secs).  Calculates changes for 
+        counter type variables. Tested with 4.1, works with 5.x but probably
+        isn't as detailed as the innodb views in  myq_status.  
+
+        Note that the data from this script is exclusively from SHOW INNODB
+        STATUS, and the meaning of many metrics are not clear.  Consult the
+        MySQL Manual for all the available information on them.
+
+- myq_slave_info:  
+        Connects to the host given and checks SHOW SLAVE STATUS.  Connects to 
+        the master host (using the same username and password as the slave) and 
+        does SHOW MASTER STATUS.  Compares the binary log positions and reports the 
+        how far behind the IO and SQL threads are.  Also reports replication
+        delay.  
+
+
+Standard Options:
+
+-u: mysql username 
+-p: mysql password (leave blank to be prompted)
+-h: hostname of the mysql server
+-H: file with a list of hosts to use (instead of -h).  
+-P: port to connect to (default: 3306)
+-r: repeat execution of the script (sometimes assumed by the script)
+-t: repeat after this many seconds
+
+
+
+NOTE: Further releases will have more tools.  
+
+

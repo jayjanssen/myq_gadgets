@@ -1,0 +1,42 @@
+Version 0.0.9 -
+    - Documented new reports in README
+    - Updated 'thds' column in the 'cttf' report to read 'crtd' instead.
+Version 0.0.8 -
+    - Added a bunch more innodb reports, looking for the good stuff.
+Version 0.0.7 - 
+    - Added an 'innodb' mode to myq_status to support 5.0+ STATUS variables.
+      'myq_innodb_status' continues to handle SHOW INNODB STATUS output,
+      mostly for 4.1 and earlier.
+    - Beefed up the format_memory function to use recursion to determine the
+      appropriate output multiplier (tera, giga, mega, kilo, etc.)
+Version 0.0.6 -
+    - Changed /usr/local/bin/perl to /usr/bin/env perl to make the open source
+      crowd happy.  Make sure the proper perl directory is first in your $PATH
+    - Made the usage string contain the valid modes in myq_status
+    - Added check for mysql binary in MySQL_Script_Utils.pm
+    - Quoted the --password option in MySQL_Script_Utils.pm to handle
+      passwords with strange characters in them.
+    - Setup default options string to be clearer which options are available
+      to the scripts (like -? and -d)
+    - Bumped the minimum repeat time for myq_status down to 1 second.  Note
+      that it still might take more than 1 second for the check to run.
+
+Version 0.0.5 - 
+    - Fixed column arrangement in myq_status for the 'cttf' mode.  
+    - Fixed column widths in myq_status for 'throughput' mode.
+
+Version 0.0.4 - 
+    - Added the myq_status script to help get a running view of what MySQL
+      is doing, specifically just about everything inside SHOW STATUS.  This
+      includes information to help you tune just about everything in MySQL.  
+
+Version 0.0.3 - 
+    - Fixed a few bugs in myq_slave_info that was happening when checking 
+        the slave status of the local server. (Thanks to fieldsa@)
+
+Version 0.0.2 -     
+    - Added myq_slave_info to check slave replication status.
+    - Created MySQL_Script_Utils.pm to hold common script functions.
+
+Version 0.0.1 - 
+    - Initial Release with myq_innodb_status, more gadgets coming soon.
