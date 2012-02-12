@@ -1,3 +1,5 @@
+Version 0.0.10 -
+	- Fixed bug with passwordless access (for instance with a .my.cnf file)
 Version 0.0.9 -
     - Documented new reports in README
     - Updated 'thds' column in the 'cttf' report to read 'crtd' instead.
