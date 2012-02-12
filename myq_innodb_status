@@ -61,6 +61,12 @@ sub parse_innodb_status {
             $innodb_status{os_file_fsyncs_per_sec} = $4;
         # INSERT BUFFER AND ADAPTIVE HASH INDEX SECTION
         # LOG SECTION
+			  } elsif( $line =~ m/^Log sequence number\s+(\d+)$/ ) {
+						$innodb_status{log_sequence_number} = $1;
+			  } elsif( $line =~ m/^Log flushed up to\s+(\d+)$/ ) {
+						$innodb_status{log_flushed_to} = $1;
+			  } elsif( $line =~ m/^Last checkpoint at\s+(\d+)$/ ) {
+						$innodb_status{log_checkpoint_at} = $1;
         } elsif( $line =~ m/^(\d+) pending log writes, (\d+) pending chkp writes$/ ) {
             $innodb_status{pending_log_writes} = $1;
             $innodb_status{pending_chkp_writes} = $2;
@@ -169,7 +175,7 @@ LOOP: while( 1 ) {
     } else {
         # (Re-)generate the cache
         &print_debug( "Generating the cache: $cache_file" );
-        $output = &mysql_call( "SHOW INNODB STATUS\\G" );
+        $output = &mysql_call( "SHOW /*!50000 ENGINE */ INNODB STATUS\\G" );
         if( open( CACHE, ">$cache_file" )) {
             foreach my $line( @$output ) {
                 print CACHE $line;
@@ -369,19 +375,22 @@ LOOP: while( 1 ) {
             &format_number( &counter_diff( 'os_file_writes' ), 2, 6 ),
             &format_number( &counter_diff( 'os_fsyncs' ), 2, 6 ),
             &format_number( $innodb_status->{os_file_reads_per_sec}, 2, 6 ),
-            &format_number( &format_memory( $innodb_status->{os_file_bytes_per_read} ), 2, 6 ),
+            &format_memory( $innodb_status->{os_file_bytes_per_read}, 2, 6 ),
             &format_number( $innodb_status->{os_file_writes_per_sec}, 2, 6 ),
             &format_number( $innodb_status->{os_file_fsyncs_per_sec}, 2, 6 ),
         );
     } elsif( $MODE eq 'log' ) {
         printf( "log      % 8s % 8s % 8s % 8s\n",
             'log_io',
-            'log_io/s'
+            'log_io/s',
+						'Chpt Age'
         ) if( $count % $lines_per_header == 0 );
-        printf( "%s % 8s % 8s", 
+        printf( "%s % 8s % 8s % 8s", 
             $pretty_time, 
             &format_number( &counter_diff( 'log_ios_done' ), 2, 6 ),
             &format_number( $innodb_status->{iog_ios_per_sec}, 2, 6 ),
+						&format_memory( ($innodb_status->{log_sequence_number} - 
+							$innodb_status->{log_checkpoint_at}), 2, 6 ),
         );
     } elsif( $MODE eq 'extralog' ) {
         printf( "log      % 8s % 8s % 8s % 8s\n",

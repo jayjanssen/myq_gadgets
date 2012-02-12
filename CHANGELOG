@@ -1,3 +1,5 @@
+Version 0.0.11 -
+	- Added Checkpoint age to myq_innodb_status log output.
 Version 0.0.10 -
 	- Fixed bug with passwordless access (for instance with a .my.cnf file)
 Version 0.0.9 -
