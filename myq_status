@@ -257,13 +257,15 @@ LOOP: while( 1 ) {
         printf( "row      %-9s \n",
             'Throughput (bytes)',
         ) if( $count % $lines_per_header == 0 );
-        printf( "time     % 7s % 7s \n",
-            'recv', 'sent',
+        printf( "time     % 7s % 7s % 7s % 7s\n",
+            'recv', 'recv/s', 'sent', 'sent/s'
         ) if( $count % $lines_per_header == 0 );
-        printf( "%s % 7s % 7s ",
+        printf( "%s % 7s % 7s % 7s % 7s",
             $pretty_time, 
             &format_memory( &counter_diff( 'bytes_received' )),
+            &format_memory( &counter_per_second( 'bytes_received' )),
             &format_memory( &counter_diff( 'bytes_sent' )),
+            &format_memory( &counter_per_second( 'bytes_sent' )),
         );
     } elsif( $MODE eq 'query' ) {
         printf( "row      %-5s %-23s %-10s\n",
@@ -310,23 +312,25 @@ LOOP: while( 1 ) {
             'Handler'
         ) if( $count % $lines_per_header == 0 );
         printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
-            'comm', 'disc', 'del', 'rfir', 'rkey', 'rnex', 'rprv', 'rnd', 'rndn',
-            'rlbk', 'upd', 'wrte'
+						'rfst', 'rkey', 'rnex', 'rprv', 'rrd', 'rrdn', 'ins', 'upd', 'del', 'cmt', 'rbk', 'disc' 
         ) if( $count % $lines_per_header == 0 );
         printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
             $pretty_time, 
-            &format_number( &counter_per_second( 'handler_commit' ), 1, 4 ),
-            &format_number( &counter_per_second( 'handler_discover' ), 1, 4 ),
-            &format_number( &counter_per_second( 'handler_delete' ), 1, 4 ),
             &format_number( &counter_per_second( 'handler_read_first' ), 1, 4 ),
             &format_number( &counter_per_second( 'handler_read_key' ), 1, 4 ),
             &format_number( &counter_per_second( 'handler_read_next' ), 1, 4 ),
             &format_number( &counter_per_second( 'handler_read_prev' ), 1, 4 ),
             &format_number( &counter_per_second( 'handler_read_rnd' ), 1, 4 ),
             &format_number( &counter_per_second( 'handler_read_rnd_next' ), 1, 4 ),
-            &format_number( &counter_per_second( 'handler_rollback' ), 1, 4 ),
-            &format_number( &counter_per_second( 'handler_update' ), 1, 4 ),
             &format_number( &counter_per_second( 'handler_write' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_update' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_delete' ), 1, 4 ),
+
+            &format_number( &counter_per_second( 'handler_commit' ), 1, 4 ),
+            &format_number( &counter_per_second( 'handler_rollback' ), 1, 4 ),
+
+            &format_number( &counter_per_second( 'handler_discover' ), 1, 4 ),
+
         );
     } elsif( $MODE eq 'innodb' ) {
         printf( "Innodb   %-19s %-37s %-14s \n",
