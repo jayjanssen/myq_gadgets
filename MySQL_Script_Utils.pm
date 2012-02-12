@@ -22,7 +22,6 @@ use vars qw/ $DEBUG $HELP $USER $PASS $HOST $PORT %DEFAULT_OPTIONS
 
 $DEBUG = 0;
 $HELP = 0;
-$PASS = -1;
 $HOST = '';
 
 die "'mysql' binary not found in your \$PATH\n" if !`which mysql`;
@@ -206,7 +205,7 @@ sub mysql_call {
         print "Password: ";
         system "stty -echo"; $PASS =<STDIN>;
         system "stty echo";
-        $PASS =~ s/\s+//g;
+        $PASS =~ s/\s+$//g; # filter training whitespace
         print "\n";
     }
 
