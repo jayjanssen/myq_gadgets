@@ -11,23 +11,54 @@ use lib "$FindBin::Bin";
 
 use MySQL_Script_Utils;
 
-use vars qw/ @ARGV $yinst_settings $TIMEOUT $status $prev_status /;
+use vars qw/ @ARGV $yinst_settings $TIMEOUT $FILENAME $status $prev_status $variables $input_file /;
 
 sub parse_status {
     my( $output ) = @_;
     
-    my %status;
+    my %local_status;
     
     foreach my $line( @$output ) {
         next if( $line =~ m/^Variable_name/ );
 
         $line =~ m/^(.*)\t(.*)$/;
-        $status{lc $1} = $2;
+                
+        $local_status{lc $1} = $2;
     }
 
-    $status{time_run} = time;
+    
+    foreach my $key( sort keys %local_status ) {
+        # print "$key => " . $local_status{$key} . "\n";
+    }
 
-    return \%status;
+    return \%local_status;
+}
+
+sub parse_mysqladmin_status {
+    my( $output ) = @_;
+    
+    my %local_status;
+    
+    foreach my $line( @$output ) {
+        next if( $line =~ m/^\| Variable_name/ );
+        next if $line =~ m/^\+\-\-\-\-/;
+        # print "$line";
+
+        $line =~ m/^\|\s(\w+)\s+\|\s(\S+)\s+\|/;
+        # $line =~ m/^\| (\w+)/;
+        
+        # print "$1 => $2\n";
+                
+        $local_status{lc $1} = $2;
+    }
+
+    
+    foreach my $key( sort keys %local_status ) {
+        # print "$key => " . $local_status{$key} . "\n";
+    }
+
+    return \%local_status;
+    
 }
 
 sub counter_diff {
@@ -44,14 +75,16 @@ sub counter_per_second {
     my( $key ) = @_;
 
     my $diff = &counter_diff( $key );
-    return $diff if( !defined( $prev_status ));
+    return $diff unless defined $prev_status;
 
-    my $seconds = $status->{time_run} -
-        $prev_status->{time_run};
+    my $seconds = $status->{uptime} -
+        $prev_status->{uptime};
+
+        # print $status->{uptime} . " ?? " . $prev_status->{uptime} . "\n";
 
     die "Invalid time? \n" if( $seconds <= 0 );
 
-    return  $diff / $seconds;
+    return $diff / $seconds;
 }
 
 sub counter_percent {
@@ -74,17 +107,18 @@ my $password_on = grep( /-p/, @ARGV );
 
 my %options = (
     't=i' => \$REPEAT_TIME,
+    'f=s' => \$FILENAME,
 );
 my $usage = <<USAGE;
-myq_status $DEFAULT_OPTIONS_STRING [-t <secs>] [myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|commands|qcache|cttf|throughput|query|temp|handler]
+myq_status $DEFAULT_OPTIONS_STRING [-t <secs>] [-f <input file>]  [myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|commands|qcache|cttf|throughput|query|temp|handler]
 
 Mode must be one of 'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io', 'innodb_log', 'innodb_row', 'commands', 'qcache', 'cttf', 'throughput', 'query', 'temp', 'handler'
 USAGE
 
 if( !&parse_options( \%options ) or $#ARGV > 0 ) {
     print STDERR $usage;
-    exit;
-}
+    exit;    
+} 
 
 $MODE = shift @ARGV if( $#ARGV == 0 );
 
@@ -95,26 +129,20 @@ die "Repeat time must be at least 1 seconds\n" if( $REPEAT_TIME < 1 );
 
 my $cache_file = "/tmp/myq_status_$HOST";
 my $count = 0;
-my $lines_per_header = 15;;
-LOOP: while( 1 ) {
-    my $start_time = time;
-    my @array;
-    my $output = \@array;
+my $lines_per_header = 15;
 
-    $output = &mysql_call( "SHOW /*!50002 GLOBAL */ STATUS" );
-    $status = &parse_status( $output );
-    my $variables = &parse_status( &mysql_call( "SHOW VARIABLES" ));
-
+sub process_global_status {
+    my( $count, $pretty_time ) = @_;
+    
     foreach my $key( keys %$status ) {
         &print_debug( "$key => " . $status->{$key}  );
     }
+    # 
+    # foreach my $key( sort keys %$status ) {
+    #     print "$key => " . $status->{$key} . "\n";
+    # }
 
-    #foreach my $key( sort keys %$status ) {
-        #print "$key => " . $status->{$key} . "\n";
-    #}
 
-    my $pretty_time = `date '+\%H:\%M:\%S'`;
-    chop $pretty_time;
 
     if( $MODE eq 'myisam' ) {
         printf( "row      %-19s %-5s %-4s \n",
@@ -482,11 +510,60 @@ LOOP: while( 1 ) {
     }
 
     print "\n";
+}
 
-    my $end_time = time;
-    $prev_status = $status;
+# Main loop
+my $count = 0;
 
-    sleep $REPEAT_TIME;
+$prev_status = undef;
 
-    $count++;
-} 
+unless( defined( $FILENAME )) {
+    while( 1 ) {
+        my $pretty_time = `date '+\%H:\%M:\%S'`;
+        chop $pretty_time;
+
+        my $output = &mysql_call( "SHOW /*!50002 GLOBAL */ STATUS" );
+
+        $status = &parse_status( $output );
+        $variables = &parse_status( &mysql_call( "SHOW VARIABLES" ));
+
+        &process_global_status( $count, $pretty_time );
+    
+        $prev_status = $status;
+    
+        sleep $REPEAT_TIME;
+    
+        $count++;
+    }     
+} else {
+    # Process the input file instead of doing live collection
+    
+    open( FILE, "< $FILENAME" );
+    
+    my $first_uptime = undef; 
+    $variables = &parse_status( &mysql_call( "SHOW VARIABLES" ));
+        
+    my @output = ();
+    while( my $line = <FILE> ) {
+        unless( $line =~ m/^\n/ ) {
+            push( @output, $line );
+        } else {
+            # Blank line
+            $status = &parse_mysqladmin_status( \@output );
+            
+            $first_uptime = $status->{'uptime'} unless defined $first_uptime;
+            
+            my $pretty_time = sprintf( "%8d", $status->{'uptime'} - $first_uptime );
+            
+            &process_global_status( $count, $pretty_time );
+        
+            $prev_status = $status;
+            
+            @output = ();
+                        
+            $count++;
+        }
+    }
+    
+    close( FILE );
+}

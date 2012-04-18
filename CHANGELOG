@@ -1,3 +1,9 @@
+Version 0.2.0 -
+	- Added support for mysqladmin output files from pt-stalk in Percona 
+	  toolkit.  This allows you to replay all the collected SHOW STATUS 
+	  and get myq_status reports.  Use '-f <filename>' to bypass normal
+	  timed data collection.
+
 Version 0.0.11 -
 	- Added Checkpoint age to myq_innodb_status log output.
 Version 0.0.10 -
