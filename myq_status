@@ -506,12 +506,12 @@ sub process_global_status {
             &format_number( $status->{'innodb_row_lock_time_avg'}, 1, 4 ),
             &format_number( $status->{'innodb_row_lock_time_max'}, 1, 4 ),
             &format_number( $status->{'innodb_row_lock_time'}, 1, 4 ),
-        );
+        );        
     } elsif( $MODE eq 'wsrep' ) {
         printf( "Wsrep (Galera/Xtradb Cluster)%45s%11s\n", "Replicated", "Received"
         ) if( $count % $lines_per_header == 0 );
         printf( "%8s%10s%5s%5s%5s%5s%5s%5s%5s%5s%5s%5s%6s%5s%6s%5s\n",
-            'time', 'state', 'conf', 'rdy', 'ctd', 'cnt', 'paus', 'dist', 'sent', 'rcvq', 'sndq', 'rops', 'rsize', 'wops', 'wsize'
+            'time', 'state', 'conf', 'rdy', 'ctd', 'cnt', 'paus', 'dist', 'sent', 'rcvq', 'sndq', 'wops', 'wsize', 'rops', 'rsize'
         ) if( $count % $lines_per_header == 0 );
         
         $status->{'wsrep_local_state_comment'} =~ s/\s+\(.+\)$//,
