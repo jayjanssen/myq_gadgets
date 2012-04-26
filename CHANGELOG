@@ -1,3 +1,8 @@
+Version 0.3.0-
+  - Added 'wsrep' mode to myq_status for Galera/Xtradb Cluster node status
+  - Added 'innodb_flush' mode to myq_status to observe innodb flushing and 
+    log checkpoint age (works best with XtraDB)
+
 Version 0.2.0 -
 	- Added support for mysqladmin output files from pt-stalk in Percona 
 	  toolkit.  This allows you to replay all the collected SHOW STATUS 

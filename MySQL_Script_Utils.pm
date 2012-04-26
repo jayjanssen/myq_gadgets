@@ -122,10 +122,10 @@ sub format_memory {
 
     my $format = "%." . $sig . "f";
 
-    my $raw_kilo = $num / 1024;
-    my $raw_mega = $raw_kilo / 1024;
-    my $raw_giga = $raw_mega / 1024;
-    my $raw_tera = $raw_giga / 1024;
+    my $raw_kilo = $num / (2**10);
+    my $raw_mega = $num / (2**20) ;
+    my $raw_giga = $num / (2**30);
+    my $raw_tera = $num / (2**40);
 
     my $kilo = sprintf( $format, $raw_kilo );
     my $mega = sprintf( $format, $raw_mega );
