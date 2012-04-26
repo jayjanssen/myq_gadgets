@@ -110,9 +110,9 @@ my %options = (
     'f=s' => \$FILENAME,
 );
 my $usage = <<USAGE;
-myq_status $DEFAULT_OPTIONS_STRING [-t <secs>] [-f <input file>]  [myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|commands|qcache|cttf|throughput|query|temp|handler|wsrep]
+myq_status $DEFAULT_OPTIONS_STRING [-t <secs>] [-f <input file>]  [myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|commands|qcache|cttf|throughput|query|temp|handler|wsrep]
 
-Mode must be one of 'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io', 'innodb_log', 'innodb_row', 'commands', 'qcache', 'cttf', 'throughput', 'query', 'temp', 'handler', 'wsrep'
+Mode must be one of 'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io', 'innodb_log', 'innodb_row', 'innodb_flush', 'commands', 'qcache', 'cttf', 'throughput', 'query', 'temp', 'handler', 'wsrep'
 USAGE
 
 if( !&parse_options( \%options ) or $#ARGV > 0 ) {
@@ -506,7 +506,40 @@ sub process_global_status {
             &format_number( $status->{'innodb_row_lock_time_avg'}, 1, 4 ),
             &format_number( $status->{'innodb_row_lock_time_max'}, 1, 4 ),
             &format_number( $status->{'innodb_row_lock_time'}, 1, 4 ),
-        );        
+        );
+    } elsif( $MODE eq 'innodb_flush' ) {
+        printf( "Innodb Flushing%22s%13s\n", 
+            "Checkpoint",
+            "Pages"
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
+            'time',
+            'meth',
+            '%dirt', 'flushed',
+            'ckpt', 'trgt', 'max',
+            'wops', 'wsize'
+        ) if( $count % $lines_per_header == 0 );        
+        
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
+            $pretty_time,
+            $variables->{innodb_adaptive_flushing_method},
+            &format_percent( 
+                $status->{'innodb_buffer_pool_pages_dirty'}, 
+                $status->{'innodb_buffer_pool_pages_data'} 
+            ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 5 ),
+            &format_memory( $status->{'innodb_checkpoint_age'}, 1, 5 ),
+            &format_percent( 
+                $status->{'innodb_checkpoint_age'},
+                $status->{'innodb_checkpoint_target_age'}
+            ),
+            &format_percent( 
+                $status->{'innodb_checkpoint_age'},
+                $status->{'innodb_checkpoint_max_age'}
+            ),
+            &format_number( &counter_per_second( 'innodb_pages_written' ), 1, 5 ),
+            &format_memory( &counter_per_second( 'innodb_pages_written' ) * $status->{'innodb_page_size'}, 2, 5 ),
+        );
     } elsif( $MODE eq 'wsrep' ) {
         printf( "Wsrep (Galera/Xtradb Cluster)%45s%11s\n", "Replicated", "Received"
         ) if( $count % $lines_per_header == 0 );
