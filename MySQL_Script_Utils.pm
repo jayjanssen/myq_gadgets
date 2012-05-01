@@ -234,8 +234,7 @@ sub mysql_call {
 
     my $rc = $? >> 8;
     if( $rc ) {
-        print "\n";
-        exit;
+        die "Error accessing mysql\n";
     }
 
     return \@output;

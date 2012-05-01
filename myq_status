@@ -603,7 +603,13 @@ unless( defined( $FILENAME )) {
     open( FILE, "< $FILENAME" );
     
     my $first_uptime = undef; 
-    $variables = &parse_status( &mysql_call( "SHOW VARIABLES" ));
+    
+    eval {
+        $variables = &parse_status( &mysql_call( "SHOW VARIABLES" ));
+    };
+    if( $@ ) {
+        print "No variables could be loaded from local running mysql\n";
+    }
         
     my @output = ();
     while( my $line = <FILE> ) {
