@@ -256,11 +256,11 @@ sub process_global_status {
             'Tables',
             'Files',
         ) if( $count % $lines_per_header == 0 );
-        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 5s % 4s\n",
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 5s % 4s %4s\n",
             'cons', 'acns',
             'conn', 'run', 'cach', 'crtd', 'slow', 'acls',
             'open', 'opns', '%opn', 
-            'open'
+            'open', 'opns'
         ) if( $count % $lines_per_header == 0 );
         printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
             $pretty_time, 
@@ -279,7 +279,7 @@ sub process_global_status {
             &format_percent( $status->{'open_tables'}, $variables->{'table_cache'} ),
 
             &format_number( $status->{'open_files'}, 0, 4 ),
-
+            &format_number( &counter_per_second( 'opened_files' ), 1, 4 ),
         );
     } elsif( $MODE eq 'throughput' ) {
         printf( "row      %-9s \n",
