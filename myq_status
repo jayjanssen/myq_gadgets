@@ -407,47 +407,47 @@ sub process_global_status {
             &format_number( &counter_per_second( 'innodb_row_lock_time' ), 1, 4 ),
         );
     } elsif( $MODE eq 'innodb_buffer_pool' ) {
-        printf( "Innodb Buffer Pool                     %-19s %-9s %-4s %-14s %-5s\n",
-             'Rd Ahead',
-             'Reads',
-             'Wait',
-             'Writes',
-             'Midpoint',
-         ) if( $count % $lines_per_header == 0 );
-         printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
-             'data', 'old', 'dirt', 'free', 'ltch', 'misc', 'tot',
-             'rand', 'ra', 'evct',
-             'reqs', 'phys',
-             'free',
-             'reqs', 'flsh', 'lruf',
-             'old', 'yng'
-         ) if( $count % $lines_per_header == 0 );
-         printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
-             $pretty_time,
-             &format_number( $status->{'innodb_buffer_pool_pages_data'}, 1, 4 ),
-             &format_number( $status->{'innodb_buffer_pool_pages_old'}, 1, 4 ),
-             &format_number( $status->{'innodb_buffer_pool_pages_dirty'}, 1, 4 ),
-             &format_number( $status->{'innodb_buffer_pool_pages_free'}, 1, 4 ),
-             &format_number( $status->{'innodb_buffer_pool_pages_latched'}, 1, 4 ),
-             &format_number( $status->{'innodb_buffer_pool_pages_misc'}, 1, 4 ),
-             &format_number( $status->{'innodb_buffer_pool_pages_total'}, 1, 4 ),
+        printf( "Innodb Buffer Pool%34s%12s%9s%7s%18s\n",
+            'Rd Ahead',
+            'Reads',
+            'Wait',
+            'Writes',
+            'Midpoint',
+        ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
+            'data', 'old', 'dirt', 'free', 'ltch', 'misc', 'tot',
+            'rand', 'line', 'evct',
+            'reqs', 'phys',
+            'free',
+            'reqs', 'flsh', 'lruf',
+            'old', 'yng'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time,
+            &format_number( $status->{'innodb_buffer_pool_pages_data'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_old'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_dirty'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_free'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_latched'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_misc'}, 1, 4 ),
+            &format_number( $status->{'innodb_buffer_pool_pages_total'}, 1, 4 ),
 
-             &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_rnd' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_evicted' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_rnd' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_ahead_evicted' ), 1, 4 ),
 
-             &format_number( &counter_per_second( 'innodb_buffer_pool_read_requests' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_reads' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_wait_free' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_write_requests' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_LRU_flushed' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_read_requests' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_reads' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_wait_free' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_write_requests' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_LRU_flushed' ), 1, 4 ),
 
-             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_made_not_young' ), 1, 4 ),
-             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_made_young' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_made_not_young' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_made_young' ), 1, 4 ),
 
-         );
-          
+        );
+  
     } elsif( $MODE eq 'innodb_io' ) {
         printf( "Inno I/O %-24s %-14s %-29s %-10s\n",
             'Reads',
