@@ -441,7 +441,7 @@ sub process_global_status {
             &format_number( &counter_per_second( 'innodb_buffer_pool_wait_free' ), 1, 4 ),
             &format_number( &counter_per_second( 'innodb_buffer_pool_write_requests' ), 1, 4 ),
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 4 ),
-            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_LRU_flushed' ), 1, 4 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_lru_flushed' ), 1, 4 ),
 
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_made_not_young' ), 1, 4 ),
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_made_young' ), 1, 4 ),
