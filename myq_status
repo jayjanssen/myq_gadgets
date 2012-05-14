@@ -525,15 +525,15 @@ sub process_global_status {
             "Checkpoint",
             "Pages"
         ) if( $count % $lines_per_header == 0 );
-        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
             'time',
             'meth',
-            '%dirt', 'flushed',
+            '%dirt', 'flushed', 'lruf'
             'ckpt', 'trgt', 'max',
             'wops', 'wsize'
         ) if( $count % $lines_per_header == 0 );        
         
-        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
             $pretty_time,
             $variables->{innodb_adaptive_flushing_method},
             &format_percent( 
@@ -541,6 +541,7 @@ sub process_global_status {
                 $status->{'innodb_buffer_pool_pages_data'} 
             ),
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 5 ),
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_lru_flushed' ), 1, 4 ),
             &format_memory( $status->{'innodb_checkpoint_age'}, 1, 5 ),
             &format_percent( 
                 $status->{'innodb_checkpoint_age'},
