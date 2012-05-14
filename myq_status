@@ -521,7 +521,7 @@ sub process_global_status {
             &format_number( $status->{'innodb_row_lock_time'}, 1, 4 ),
         );
     } elsif( $MODE eq 'innodb_flush' ) {
-        printf( "Innodb Flushing%22s%13s\n", 
+        printf( "Innodb Flushing%29s%13s\n", 
             "Checkpoint",
             "Pages"
         ) if( $count % $lines_per_header == 0 );
