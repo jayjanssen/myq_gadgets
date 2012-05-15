@@ -415,7 +415,7 @@ sub process_global_status {
             'Midpoint',
         ) if( $count % $lines_per_header == 0 );
         printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
-            'data', 'old', 'dirt', 'free', 'ltch', 'misc', 'tot', 'evct'
+            'data', 'old', 'dirt', 'free', 'ltch', 'misc', 'tot', 'evct',
             'rand', 'line', 'evct',
             'reqs', 'phys',
             'free',
@@ -528,7 +528,7 @@ sub process_global_status {
         printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
             'time',
             'meth',
-            '%dirt', 'flushed', 'lruf'
+            '%dirt', 'flushed', 'lruf',
             'ckpt', 'trgt', 'max',
             'wops', 'wsize'
         ) if( $count % $lines_per_header == 0 );        
