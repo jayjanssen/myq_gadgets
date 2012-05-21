@@ -528,7 +528,7 @@ sub process_global_status {
         printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
             'time',
             'meth',
-            '%dirt', 'flushed', 'lruf',
+            '%dirt', 'expf', 'lruf',
             'ckpt', 'trgt', 'max',
             'wops', 'wsize'
         ) if( $count % $lines_per_header == 0 );        
@@ -540,7 +540,9 @@ sub process_global_status {
                 $status->{'innodb_buffer_pool_pages_dirty'}, 
                 $status->{'innodb_buffer_pool_pages_data'} 
             ),
-            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ), 1, 5 ),
+            # expf = Explicit Flushes --- those note caused by LRU
+            &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ) - &counter_per_second('innodb_buffer_pool_pages_lru_flushed') , 1, 5 ),
+            # lrfu = LRU Flushes - those caused by a dirty page falling off the LRU
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_lru_flushed' ), 1, 4 ),
             &format_memory( $status->{'innodb_checkpoint_age'}, 1, 5 ),
             &format_percent( 
