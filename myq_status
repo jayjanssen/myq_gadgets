@@ -122,7 +122,7 @@ if( !&parse_options( \%options ) or $#ARGV > 0 ) {
 
 $MODE = shift @ARGV if( $#ARGV == 0 );
 
-die $usage if( $MODE !~ m/myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waitscommands|qcache|cttf|throughput|query|temp|handler|wsrep/ );
+die $usage if( $MODE !~ m/myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|commands|qcache|cttf|throughput|query|temp|handler|wsrep/ );
 
 die "Repeat time must be at least 1 seconds\n" if( $REPEAT_TIME < 1 );
 

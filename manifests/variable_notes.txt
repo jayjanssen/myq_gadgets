@@ -1,0 +1,6 @@
+=Innodb_buffer_pool_pages_made_young == pages read that were in the 'old' block
+  Accessing to a block in the old sublist makes it “young”, moving it to the head of the buffer pool (the head of the new sublist). If the block was read in because it was required, the first access occurs immediately and the block is made young. If the block was read in due to read-ahead, the first access does not occur immediately (and might not occur at all before the block is evicted).
+  
+=Innodb_buffer_pool_pages_made_not_young -- pages inserted but not accessed?  Causes:
+  - read ahead
+  - ???
