@@ -538,7 +538,7 @@ sub process_global_status {
             $variables->{innodb_adaptive_flushing_method},
             &format_percent( 
                 $status->{'innodb_buffer_pool_pages_dirty'}, 
-                $status->{'innodb_buffer_pool_pages_data'} 
+                $status->{'innodb_buffer_pool_pages_total'}                
             ),
             # expf = Explicit Flushes --- those note caused by LRU
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ) - &counter_per_second('innodb_buffer_pool_pages_lru_flushed') , 1, 5 ),
@@ -598,33 +598,39 @@ sub process_global_status {
             &format_number( &counter_per_second( 'innodb_x_lock_oswaits' ), 1, 5 ),
         );            
     } elsif( $MODE eq 'wsrep' ) {
-        printf( "Wsrep (Galera/Xtradb Cluster)%45s%11s\n", "Replicated", "Received"
+        printf( "Wsrep%11s%13s%21s%18s%14s\n", "Cluster", "Node", "Flow", "Replicated", "Received"
         ) if( $count % $lines_per_header == 0 );
-        printf( "%8s%10s%5s%5s%5s%5s%5s%5s%5s%5s%5s%5s%6s%5s%6s%5s\n",
-            'time', 'state', 'conf', 'rdy', 'ctd', 'cnt', 'paus', 'dist', 'sent', 'rcvq', 'sndq', 'wops', 'wsize', 'rops', 'rsize'
+        printf( "%8s%5.4s%5s%5s %5s%5s%5s%5s %5s%5s %5s%5s%5s %5s%5s%5s\n",
+            'time', 'status', 'conf', 'size', 'rdy', 'cmt', 'ctd', 'dist', 'paus', 'sent', 'que', 'ops', 'size', 'que', 'ops', 'size'
         ) if( $count % $lines_per_header == 0 );
         
         $status->{'wsrep_local_state_comment'} =~ s/\s+\(.+\)$//,
         
         
         
-        printf( "%8s%10.9s%5.4s%5.4s%5.4s%5.4s%5.4s%5.4s%5.4s%5.4s%5.4s%5.4s%6.5s%5.4s%6.5s",
+        printf( "%8s%5.4s%5.4s%5.4s %5.4s%5.4s%5.4s%5.4s %5.4s%5.4s %5.4s%5.4s%5.4s %5.4s%5.4s%5.4s",
             $pretty_time, 
             # $status->{'wsrep_local_state_uuid'} eq $status->{'wsrep_cluster_state_uuid'} ? 'Ok' : 'Unsync'
-            $status->{'wsrep_local_state_comment'},
-            $status->{'wsrep_cluster_conf_id'},
-            $status->{'wsrep_ready'},
-            $status->{'wsrep_connected'},
+            $status->{'wsrep_cluster_status'},
+            $status->{'wsrep_cluster_conf_id'},            
             $status->{'wsrep_cluster_size'},
-            &format_number( $status->{'wsrep_flow_control_paused'}, 2, 4 ),
+            
+            $status->{'wsrep_ready'},
+            $status->{'wsrep_local_state_comment'},
+            $status->{'wsrep_connected'},
+            
             &format_number( $status->{'wsrep_cert_deps_distance'}, 1, 4 ),
+            
+            &format_number( $status->{'wsrep_flow_control_paused'}, 2, 4 ),
             &format_number( &counter_per_second( 'wsrep_flow_control_sent' ), 0, 4 ),
-            &format_number( $status->{'wsrep_local_recv_queue'}, 0, 4 ),
+            
             &format_number( $status->{'wsrep_local_send_queue'}, 0, 4 ),
             &format_number( &counter_per_second( 'wsrep_replicated' ), 1, 4 ),
-            &format_memory( &counter_per_second( 'wsrep_replicated_bytes' ), 2, 5 ),
+            &format_memory( &counter_per_second( 'wsrep_replicated_bytes' ), 2, 4 ),
+            
+            &format_number( $status->{'wsrep_local_recv_queue'}, 0, 4 ),
             &format_number( &counter_per_second( 'wsrep_received' ), 1, 4 ),
-            &format_memory( &counter_per_second( 'wsrep_received_bytes' ), 2, 5 ), 
+            &format_memory( &counter_per_second( 'wsrep_received_bytes' ), 2, 4 ), 
         );    
     }
 
