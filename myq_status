@@ -529,7 +529,7 @@ sub process_global_status {
             'time',
             'meth',
             '%dirt', 'expf', 'lruf',
-            'ckpt', 'trgt', 'max',
+            'age', 'trgt', 'max',
             'wops', 'wsize'
         ) if( $count % $lines_per_header == 0 );        
         
