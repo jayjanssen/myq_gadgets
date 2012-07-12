@@ -11,7 +11,23 @@ use lib "$FindBin::Bin";
 
 use MySQL_Script_Utils;
 
-use vars qw/ @ARGV $yinst_settings $TIMEOUT $innodb_status $prev_innodb_status /;
+use vars qw/ @ARGV $yinst_settings $TIMEOUT $innodb_status $prev_innodb_status $variables /;
+
+sub parse_status {
+    my( $output ) = @_;
+
+    my %local_status;
+
+    foreach my $line( @$output ) {
+        next if( $line =~ m/^Variable_name/ );
+
+        $line =~ m/^(.*)\t(.*)$/;
+
+        $local_status{lc $1} = $2;
+    }
+
+    return \%local_status;
+}
 
 sub parse_innodb_status {
     my( $output ) = @_;
@@ -154,6 +170,8 @@ die "Repeat time must be at least than 10 seconds\n" if( $REPEAT_TIME < 10 );
 my $cache_file = "/tmp/myq_innodb_status_$HOST";
 my $count = 0;
 my $lines_per_header = 15;;
+my $variables = &parse_status( &mysql_call( "SHOW GLOBAL VARIABLES" ));
+
 LOOP: while( 1 ) {
     my $start_time = time;
     my @array;
@@ -380,19 +398,24 @@ LOOP: while( 1 ) {
             &format_number( $innodb_status->{os_file_fsyncs_per_sec}, 2, 6 ),
         );
     } elsif( $MODE eq 'log' ) {
-        printf( "log      % 8s % 8s % 8s % 8s % 8s\n",
+        printf( "log      % 8s % 8s % 8s % 8s % 8s % 8s\n",
             'log_io',
             'log_io/s',
 	    'Chpt Age',
-	    'M/s'
+	    'Pct fill',
+	    'Data'
         ) if( $count % $lines_per_header == 0 );
-        printf( "%s % 8s % 8s % 8s % 8s", 
+        printf( "%s % 8s % 8s % 8s % 8s % 8s", 
             $pretty_time, 
             &format_number( &counter_diff( 'log_ios_done' ), 2, 6 ),
             &format_number( $innodb_status->{iog_ios_per_sec}, 2, 6 ),
 						&format_memory( ($innodb_status->{log_sequence_number} - 
 							$innodb_status->{log_checkpoint_at}), 2, 6 ),
-            &format_memory( &counter_diff( 'log_sequence_number' ), 2, 6 )
+	    &format_percent( ($innodb_status->{log_sequence_number} -
+                             $innodb_status->{log_checkpoint_at}),
+                            ($variables->{innodb_log_file_size} *
+                             $variables->{innodb_log_files_in_group}), 2, 6),
+            &format_number( &counter_diff( 'log_sequence_number' ), 2, 6 )
         );
     } elsif( $MODE eq 'extralog' ) {
         printf( "log      % 8s % 8s % 8s % 8s\n",
