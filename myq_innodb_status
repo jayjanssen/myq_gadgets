@@ -415,7 +415,7 @@ LOOP: while( 1 ) {
                              $innodb_status->{log_checkpoint_at}),
                             ($variables->{innodb_log_file_size} *
                              $variables->{innodb_log_files_in_group}), 2, 6),
-            &format_number( &counter_diff( 'log_sequence_number' ), 2, 6 )
+            &format_memory( &counter_diff( 'log_sequence_number' ), 2, 6 )
         );
     } elsif( $MODE eq 'extralog' ) {
         printf( "log      % 8s % 8s % 8s % 8s\n",
