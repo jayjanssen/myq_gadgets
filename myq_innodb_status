@@ -380,17 +380,19 @@ LOOP: while( 1 ) {
             &format_number( $innodb_status->{os_file_fsyncs_per_sec}, 2, 6 ),
         );
     } elsif( $MODE eq 'log' ) {
-        printf( "log      % 8s % 8s % 8s % 8s\n",
+        printf( "log      % 8s % 8s % 8s % 8s % 8s\n",
             'log_io',
             'log_io/s',
-						'Chpt Age'
+	    'Chpt Age',
+	    'M/s'
         ) if( $count % $lines_per_header == 0 );
-        printf( "%s % 8s % 8s % 8s", 
+        printf( "%s % 8s % 8s % 8s % 8s", 
             $pretty_time, 
             &format_number( &counter_diff( 'log_ios_done' ), 2, 6 ),
             &format_number( $innodb_status->{iog_ios_per_sec}, 2, 6 ),
 						&format_memory( ($innodb_status->{log_sequence_number} - 
 							$innodb_status->{log_checkpoint_at}), 2, 6 ),
+            &format_memory( &counter_diff( 'log_sequence_number' ), 2, 6 )
         );
     } elsif( $MODE eq 'extralog' ) {
         printf( "log      % 8s % 8s % 8s % 8s\n",
