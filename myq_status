@@ -110,9 +110,9 @@ my %options = (
     'f=s' => \$FILENAME,
 );
 my $usage = <<USAGE;
-myq_status $DEFAULT_OPTIONS_STRING [-t <secs>] [-f <input file>]  [myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|commands|qcache|cttf|throughput|query|temp|handler|wsrep]
+myq_status $DEFAULT_OPTIONS_STRING [-t <secs>] [-f <input file>]  [myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|innodb_hist|commands|qcache|cttf|throughput|query|temp|handler|wsrep]
 
-Mode must be one of 'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io', 'innodb_log', 'innodb_row', 'innodb_flush', 'innodb_hash', 'innodb_waits', 'commands', 'qcache', 'cttf', 'throughput', 'query', 'temp', 'handler', 'wsrep'
+Mode must be one of 'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io', 'innodb_log', 'innodb_row', 'innodb_flush', 'innodb_hash', 'innodb_waits', 'innodb_hist', 'commands', 'qcache', 'cttf', 'throughput', 'query', 'temp', 'handler', 'wsrep'
 USAGE
 
 if( !&parse_options( \%options ) or $#ARGV > 0 ) {
@@ -122,7 +122,7 @@ if( !&parse_options( \%options ) or $#ARGV > 0 ) {
 
 $MODE = shift @ARGV if( $#ARGV == 0 );
 
-die $usage if( $MODE !~ m/myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|commands|qcache|cttf|throughput|query|temp|handler|wsrep/ );
+die $usage if( $MODE !~ m/myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|innodb_hist|commands|qcache|cttf|throughput|query|temp|handler|wsrep/ );
 
 die "Repeat time must be at least 1 seconds\n" if( $REPEAT_TIME < 1 );
 
@@ -600,7 +600,22 @@ sub process_global_status {
             &format_number( &counter_per_second( 'innodb_x_lock_spin_waits' ), 1, 5 ),
             &format_number( &counter_per_second( 'innodb_x_lock_spin_rounds' ), 1, 5 ),
             &format_number( &counter_per_second( 'innodb_x_lock_oswaits' ), 1, 5 ),
-        );            
+        );    
+    } elsif( $MODE eq 'innodb_hist' ) {
+        printf( "Innodb Purging %10s\n", "Txns Diff"
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s\n",
+            'time',
+            'leng', 'max', 'view', 'unno'
+        ) if( $count % $lines_per_header == 0 );
+
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
+            $pretty_time,
+            &format_number( $status->{'innodb_history_list_length'}, 1, 5 ),
+            &format_number( $status->{'innodb_max_trx_id'} - $status->{'innodb_purge_trx_id'}, 1, 5 ),
+            &format_number( $status->{'innodb_oldest_view_low_limit_trx_id'} - $status->{'innodb_purge_trx_id'}, 1, 5 ),
+            &format_number( $status->{'innodb_purge_undo_no'}, 1, 5 ),
+        );        
     } elsif( $MODE eq 'wsrep' ) {
         printf( "Wsrep%11s%13s%21s%18s%14s\n", "Cluster", "Node", "Flow", "Replicated", "Received"
         ) if( $count % $lines_per_header == 0 );
