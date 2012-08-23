@@ -574,7 +574,7 @@ sub process_global_status {
         printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
             $pretty_time,
             $variables->{innodb_adaptive_hash_index_partitions},
-            &format_number( $status->{'innodb_mem_adaptive_hash'}, 1, 5 ),
+            &format_memory( $status->{'innodb_mem_adaptive_hash'}, 1, 5 ),
             &format_number( $status->{'innodb_adaptive_hash_cells'}, 1, 5 ),
             &format_number( $status->{'innodb_adaptive_hash_heap_buffers'}, 1, 5 ),
 
