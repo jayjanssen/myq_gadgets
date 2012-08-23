@@ -46,7 +46,7 @@ sub print_debug {
 sub format_number {
     my( $num, $sig, $max_len, $debug ) = @_;
 
-    return 0 if( $num <= 0 );
+    # return 0 if( $num <= 0 );
 
     my $format = "%." . $sig . "f";
 
