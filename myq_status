@@ -562,7 +562,7 @@ sub process_global_status {
             &format_number( &counter_per_second( 'innodb_pages_written' ), 1, 5 ),
             &format_memory( &counter_per_second( 'innodb_pages_written' ) * $status->{'innodb_page_size'}, 2, 5 ),
             &format_memory( &counter_diff( 'innodb_lsn_current' ), 2, 5 ),
-            &format_memory( &counter_diff( 'innodb_lsn_checkpoint' ), 2, 5 ),
+            &format_memory( &counter_diff( 'innodb_lsn_last_checkpoint' ), 2, 5 ),
         );
     } elsif( $MODE eq 'innodb_hash' ) {
         printf( "Innodb Adaptive Hash%22s\n",
