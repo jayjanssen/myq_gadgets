@@ -525,40 +525,44 @@ sub process_global_status {
             &format_number( $status->{'innodb_row_lock_time'}, 1, 4 ),
         );
     } elsif( $MODE eq 'innodb_flush' ) {
-        printf( "Innodb Flushing%29s%13s\n", 
+        printf( "Innodb Flushing%29s%13s%9s\n",
             "Checkpoint",
-            "Pages"
+            "Pages",
+            "LSN"
         ) if( $count % $lines_per_header == 0 );
-        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
             'time',
             'meth',
             '%dirt', 'expf', 'lruf',
             'age', 'trgt', 'max',
-            'wops', 'wsize'
-        ) if( $count % $lines_per_header == 0 );        
-        
-        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
+            'wops', 'wsize',
+            'curr', 'chkpt'
+        ) if( $count % $lines_per_header == 0 );
+
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
             $pretty_time,
             $variables->{innodb_adaptive_flushing_method},
-            &format_percent( 
-                $status->{'innodb_buffer_pool_pages_dirty'}, 
-                $status->{'innodb_buffer_pool_pages_total'}                
+            &format_percent(
+                $status->{'innodb_buffer_pool_pages_dirty'},
+                $status->{'innodb_buffer_pool_pages_total'}
             ),
             # expf = Explicit Flushes --- those note caused by LRU
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_flushed' ) - &counter_per_second('innodb_buffer_pool_pages_lru_flushed') , 1, 5 ),
             # lrfu = LRU Flushes - those caused by a dirty page falling off the LRU
             &format_number( &counter_per_second( 'innodb_buffer_pool_pages_lru_flushed' ), 1, 4 ),
             &format_memory( $status->{'innodb_checkpoint_age'}, 1, 5 ),
-            &format_percent( 
+            &format_percent(
                 $status->{'innodb_checkpoint_age'},
                 $status->{'innodb_checkpoint_target_age'}
             ),
-            &format_percent( 
+            &format_percent(
                 $status->{'innodb_checkpoint_age'},
                 $status->{'innodb_checkpoint_max_age'}
             ),
             &format_number( &counter_per_second( 'innodb_pages_written' ), 1, 5 ),
             &format_memory( &counter_per_second( 'innodb_pages_written' ) * $status->{'innodb_page_size'}, 2, 5 ),
+            &format_memory( &counter_diff( 'innodb_lsn_current' ), 2, 5 ),
+            &format_memory( &counter_diff( 'innodb_lsn_checkpoint' ), 2, 5 ),
         );
     } elsif( $MODE eq 'innodb_hash' ) {
         printf( "Innodb Adaptive Hash%22s\n",
