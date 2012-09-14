@@ -510,11 +510,12 @@ sub process_global_status {
         printf( "Inno Locks              %-19s\n",
             "Time (ms)",
         ) if( $count % $lines_per_header == 0 );
-        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s \n",
-            'cur', 'avg', 'tot', 'cur', 'avg', 'max', 'tot'
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s \n",
+            'cur', 'wts', 'avg', 'tot', 'cur', 'avg', 'max', 'tot'
         ) if( $count % $lines_per_header == 0 );
-        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
             $pretty_time, 
+			&format_number( $status->{'innodb_current_row_locks'}, 1, 4 ),
             &format_number( $status->{'innodb_row_lock_current_waits'}, 1, 4 ),
             &format_number( &counter_per_second( 'innodb_row_lock_waits' ), 1, 4 ),
             &format_number( $status->{'innodb_row_lock_waits'}, 1, 4 ),
