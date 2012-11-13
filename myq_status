@@ -648,8 +648,8 @@ sub process_global_status {
             
             &format_number( $status->{'wsrep_cert_deps_distance'}, 1, 4 ),
             
-            &format_number( $status->{'wsrep_flow_control_paused'}, 2, 4 ),
-            &format_number( &counter_per_second( 'wsrep_flow_control_sent' ), 0, 4 ),
+            &format_number( $status->{'wsrep_flow_control_paused'}, 1, 4 ),
+            &format_number( $status->{'wsrep_flow_control_sent'}, 0, 4 ),
             
             &format_number( $status->{'wsrep_local_send_queue'}, 0, 4 ),
             &format_number( &counter_per_second( 'wsrep_replicated' ), 1, 4 ),
