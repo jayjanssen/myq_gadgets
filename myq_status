@@ -101,7 +101,7 @@ sub counter_percent {
 
 
 my $MODE = 'one';
-my $REPEAT_TIME = 60;
+my $REPEAT_TIME = 1;
 
 my $password_on = grep( /-p/, @ARGV );
 
