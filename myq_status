@@ -266,20 +266,22 @@ sub process_global_status {
 
         );
     } elsif( $MODE eq 'cttf' ) {
-        printf( "row      %-9s %-29s %-15s %-9s\n",
+        printf( "row      %-9s %-29s %-9s %-15s %-9s\n",
             'Connects',
             'Threads',
+            'Pool',
             'Tables',
             'Files',
         ) if( $count % $lines_per_header == 0 );
-        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 5s % 4s %4s\n",
+        printf( "time     % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s\n",
             'cons', 'acns',
             'conn', 'run', 'cach', 'crtd', 'slow', 'acls',
-            'open', 'opns', '%opn', 
+            'tot', 'idle',
+            'open', 'opns', '%opn',
             'open', 'opns'
         ) if( $count % $lines_per_header == 0 );
-        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
-            $pretty_time, 
+        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s % 4s",
+            $pretty_time,
             &format_number( &counter_per_second( 'connections' ), 1, 4 ),
             &format_number( &counter_per_second( 'aborted_connects' ), 1, 4 ),
 
@@ -289,6 +291,9 @@ sub process_global_status {
             &format_number( &counter_per_second( 'threads_created' ), 1, 4 ),
             &format_number( &counter_per_second( 'slow_launch_threads' ), 1, 4 ),
             &format_number( &counter_per_second( 'aborted_clients' ), 1, 4 ),
+
+            &format_number( $status->{'threadpool_threads'}, 0, 4 ),
+            &format_number( $status->{'threadpool_idle_threads'}, 0, 4 ),
 
             &format_number( $status->{'open_tables'}, 0, 4 ),
             &format_number( &counter_per_second( 'opened_tables' ), 1, 4 ),
