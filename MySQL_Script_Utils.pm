@@ -102,7 +102,7 @@ sub format_percent {
 
     return 0 if( $bottom == 0 );
 
-    my $raw = sprintf( "%.2f", ($top / $bottom) * 100 );
+    my $raw = sprintf( "%.1f", ($top / $bottom) * 100 );
 
     while( length( $raw ) > 4 ) {
         chop $raw;
