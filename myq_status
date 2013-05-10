@@ -87,6 +87,32 @@ sub counter_per_second {
     return $diff / $seconds;
 }
 
+sub group_counter_per_second {
+	my @search_keys = @_;        
+	#print "Search keys: " . join( ', ', @search_keys ) . "\n";        
+	# Keys can be regexes, so we need to build the array of all the actual variables we are grouping        
+	my @server_keys = keys %$status;        
+	#print "Server keys: " . join( ', ', @server_keys ) . "\n";        
+	my @actual_keys;        
+	foreach my $search_key( @search_keys ) {                
+		my @found = grep { $_ =~ m/^$search_key$/i } @server_keys;                
+		push( @actual_keys, @found );        
+	} 
+	my %dedup;
+	@dedup{@actual_keys} = @actual_keys;        
+	@actual_keys = values %dedup;        
+	#print "Actual keys: " . join( ', ', @actual_keys ) . "\n";        
+	my $total_diff = 0;        
+	foreach my $key( @actual_keys ) {                
+		$total_diff += &counter_diff( $key );        
+	}      
+	return $total_diff unless defined $prev_status;
+      
+	my $seconds = $status->{uptime} - $prev_status->{uptime};    
+	die "Invalid time? \n" if( $seconds <= 0 );    
+	return $total_diff / $seconds;
+}
+
 sub counter_percent {
     my( $key1, $key2 ) = @_;
 
@@ -134,7 +160,7 @@ if( !&parse_options( \%options ) or $#ARGV > 0 ) {
 
 $MODE = shift @ARGV if( $#ARGV == 0 );
 
-die $usage if( $MODE !~ m/myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|innodb_hist|commands|qcache|cttf|throughput|query|temp|handler|wsrep/ );
+die $usage if( $MODE !~ m/coms|myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|innodb_hist|commands|qcache|cttf|throughput|query|temp|handler|wsrep/ );
 
 die "Repeat time must be at least 1 seconds\n" if( $REPEAT_TIME < 1 );
 
@@ -197,6 +223,25 @@ sub process_global_status {
             &format_percent( &counter_diff( 'key_writes'), &counter_diff( 'key_write_requests' )),
 
         );
+    } elsif( $MODE eq 'coms' ) {
+        printf( "Command Groups\n" ) if( $count % $lines_per_header == 0 );
+        printf( "time     % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s\n",
+            'sel', 'dml', 'ddl', 'admin', 'show', 'set', 'lock', 'trx', 'xa'
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%s % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s",
+            $pretty_time,
+            &format_number( &counter_per_second( 'com_select' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_insert.*', 'com_update.*', 'com_delete.*', 'Com_load', 'Com_replace.*', 'Com_truncate' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_alter.*', 'com_create.*', 'com_drop.*', 'com_rename_table' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_admin.*' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_show.*' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_set.*' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_lock.*', 'com_unlock.*' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_begin', 'com_commit', 'com_rollback.*', 'com_savepoint' ), 1, 4 ),
+            &format_number( &group_counter_per_second( 'com_xa.*' ), 1, 4 ),
+
+        );
+
     } elsif( $MODE eq 'commands' ) {
         printf( "row      %-19s \n",
             'Total Commands '
