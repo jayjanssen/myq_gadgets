@@ -692,8 +692,8 @@ sub process_global_status {
         );
 
     } elsif( $MODE eq 'wsrep' ) {		
-        printf( "%s / %s\n", $variables->{'wsrep_cluster_name'}, $variables->{'wsrep_node_name'}
-        ) if( $count % $lines_per_header == 0 );
+        printf( "%s / %s / %s %s\n", $variables->{'wsrep_cluster_name'}, $variables->{'wsrep_node_name'}, $status->{'wsrep_provider_name'}, $status->{'wsrep_provider_version'}        
+		) if( $count % $lines_per_header == 0 );
         printf( "%-8s %-8s %-8s %-7s %-7s %-9s %-11s %-7s\n", "Wsrep", "Cluster", "Node", "Queue", "Ops", "Bytes", "Flow", "Conflct"
         ) if( $count % $lines_per_header == 0 );
         printf( "%8s %1s %3s %2s %4s %3.3s %3s %3s %3s %3s %4s %4s %3s %3s %3s %3s %3s\n",
