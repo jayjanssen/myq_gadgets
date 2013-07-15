@@ -191,12 +191,12 @@ sub process_global_status {
 		) if( $count % $lines_per_header == 0 );
 		printf( "time     % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s\n",
 			'lock',
-			'full', 'dirt', 'most',
+			'full', '%', 'most',
 			'reqs', 'miss', 'reqs', 'miss',
 		) if( $count % $lines_per_header == 0 );
 
 		my $key_buff_used =  $variables->{key_buffer_size} - ($status->{key_blocks_unused} * $variables->{key_cache_block_size});
-		printf( "%s % 5s % 5s % 5s % 5s % 5s % 5s % 5s",
+		printf( "%s % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s",
 			$pretty_time,
 
 			&format_percent( &counter_diff( 'table_locks_waited' ),
@@ -206,7 +206,7 @@ sub process_global_status {
 
 			&format_memory( $key_buff_used ),
 			&format_percent( $key_buff_used, $variables->{key_buffer_size} ),
-			&format_percent( $status->{key_buffer_used}, $variables->{key_buffer_size} ),
+			&format_percent( ($status->{key_blocks_used} * $variables->{key_cache_block_size}), $variables->{key_buffer_size} ),
 
 			&format_number( &counter_per_second( 'key_read_requests' ), 1, 4 ),
 			&format_percent( &counter_diff( 'key_reads'), &counter_diff( 'key_read_requests' )),
