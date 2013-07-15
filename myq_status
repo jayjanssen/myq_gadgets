@@ -183,44 +183,36 @@ sub process_global_status {
 
 
     if( $MODE eq 'myisam' ) {
-        printf( "row      %-19s %-5s %-4s %14s %11s\n",
-            'Queries (/sec)',
-            'Table',
-            'Key Buffer',
-            'Reads',
-            'Writes',
-        ) if( $count % $lines_per_header == 0 );
-        printf( "time     % 4s % 4s % 4s % 4s % 5s % 5s % 7s % 5s % 5s % 4s % 4s % 4s\n",
-            'sel', 'ins', 'upd', 'del',
-            'lock',
-            'full', 'used', 'dirt',
-            'reqs', 'miss', 'reqs', 'miss',
-        ) if( $count % $lines_per_header == 0 );
-        printf( "%s % 4s % 4s % 4s % 4s % 4s % 4s % 7s % 4s % 4s % 4s % 4s % 4s",
-            $pretty_time,
-            &format_number( &counter_per_second( 'com_select' ), 1, 4 ),
-            &format_number( &counter_per_second( 'com_insert' ), 1, 4 ),
-            &format_number( &counter_per_second( 'com_update' ), 1, 4 ),
-            &format_number( &counter_per_second( 'com_delete' ), 1, 4 ),
+		printf( "row      %-5s %-4s %12s %12s\n",
+			'Table',
+			'Key Buffer',
+			'Reads',
+			'Writes',
+		) if( $count % $lines_per_header == 0 );
+		printf( "time     % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s\n",
+			'lock',
+			'full', 'dirt', 'most',
+			'reqs', 'miss', 'reqs', 'miss',
+		) if( $count % $lines_per_header == 0 );
 
-            &format_percent( &counter_diff( 'table_locks_waited' ),
-                &counter_diff( 'table_locks_immediate' ) +
-                &counter_diff( 'table_locks_waited' )),
+		my $key_buff_used =  $variables->{key_buffer_size} - ($status->{key_blocks_unused} * $variables->{key_cache_block_size});
+		printf( "%s % 5s % 5s % 5s % 5s % 5s % 5s % 5s",
+			$pretty_time,
 
+			&format_percent( &counter_diff( 'table_locks_waited' ),
+				&counter_diff( 'table_locks_immediate' ) +
+				&counter_diff( 'table_locks_waited' )
+			),
 
-            &format_percent( $status->{key_blocks_used},
-                $status->{key_blocks_unused} + $status->{key_blocks_used} ),
+			&format_memory( $key_buff_used ),
+			&format_percent( $key_buff_used, $variables->{key_buffer_size} ),
+			&format_percent( $status->{key_buffer_used}, $variables->{key_buffer_size} ),
 
-            &format_memory( $status->{key_blocks_used} *
-                $variables->{key_cache_block_size} ),
-
-            &format_percent( $status->{key_blocks_not_flushed},
-                $status->{key_blocks_used} ),
-
-            &format_number( &counter_per_second( 'key_read_requests' ), 1, 4 ),
-            &format_percent( &counter_diff( 'key_reads'), &counter_diff( 'key_read_requests' )),
-            &format_number( &counter_per_second( 'key_write_requests' ), 1, 4 ),
-            &format_percent( &counter_diff( 'key_writes'), &counter_diff( 'key_write_requests' )),
+			&format_number( &counter_per_second( 'key_read_requests' ), 1, 4 ),
+			&format_percent( &counter_diff( 'key_reads'), &counter_diff( 'key_read_requests' )),
+			&format_number( &counter_per_second( 'key_write_requests' ), 1, 4 ),
+			&format_percent( &counter_diff( 'key_writes'), &counter_diff( 'key_write_requests' )),
+		);
 
         );
     } elsif( $MODE eq 'coms' ) {
