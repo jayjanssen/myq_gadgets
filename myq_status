@@ -213,8 +213,6 @@ sub process_global_status {
 			&format_number( &counter_per_second( 'key_write_requests' ), 1, 4 ),
 			&format_percent( &counter_diff( 'key_writes'), &counter_diff( 'key_write_requests' )),
 		);
-
-        );
     } elsif( $MODE eq 'coms' ) {
         printf( "Command Groups\n" ) if( $count % $lines_per_header == 0 );
         printf( "time     % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s % 5s\n",
