@@ -148,7 +148,7 @@ myq_status  [-d] [-?] [-u user [-p [pass]]] [-h host] [-P <port>] [-t <secs>] [-
 
   MODE  'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io',
         'innodb_log', 'innodb_row', 'innodb_flush', 'innodb_hash',
-        'innodb_waits', 'innodb_hist', 'commands', 'qcache',
+        'innodb_waits', 'innodb_hist', 'coms', 'commands', 'qcache',
         'cttf', 'throughput', 'query', 'temp', 'handler', 'wsrep'
 
 USAGE

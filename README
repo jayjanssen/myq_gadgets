@@ -21,6 +21,8 @@ Gadgets:
             each interval sorted descending by number of occurances.  This
             should be a good indication if something is running that you are
             not aware of.
+        'coms' - Tabluar view of groups of common server commands.  Not as 
+			complete as 'commands', but easier to read.  
         'qcache' - Info on query cache usage.
         'cttf' - Connections, Threads, Tables, Files info.
         'throughput' - Byes received/sent
