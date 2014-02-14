@@ -24,7 +24,7 @@ $DEBUG = 0;
 $HELP = 0;
 $HOST = '';
 
-die "'mysql' binary not found in your \$PATH\n" if !`which mysql`;
+warn "'mysql' binary not found in your \$PATH\n" if !`which mysql`;
 
 $DEFAULT_OPTIONS_STRING = " [-d] [-?] [-u user [-p [pass]]] [-h host] [-P <port>]";
 my %DEFAULT_OPTIONS = (
