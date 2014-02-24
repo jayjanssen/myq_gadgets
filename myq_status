@@ -643,24 +643,29 @@ sub process_global_status {
             &format_number( &counter_per_second( 'innodb_adaptive_hash_non_hash_searches' ), 1, 5 ),
         );
     } elsif( $MODE eq 'innodb_waits' ) {
-        printf( "Innodb %9s%18s\n",
-            "S-locks",            "X-locks",
+        printf( "Innodb %9s%18s%18s\n",
+            "S-locks",            "X-locks", "Mutexes"
         ) if( $count % $lines_per_header == 0 );
-        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s\n",
             'time',
+            'swait', 'srnd', 'owait',
             'swait', 'srnd', 'owait',
             'swait', 'srnd', 'owait'
         ) if( $count % $lines_per_header == 0 );
 
-        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
+        printf( "%8s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s%6.5s",
             $pretty_time,
             &format_number( &counter_per_second( 'innodb_s_lock_spin_waits' ), 1, 5 ),
             &format_number( &counter_per_second( 'innodb_s_lock_spin_rounds' ), 1, 5 ),
-            &format_number( &counter_per_second( 'innodb_s_lock_oswaits' ), 1, 5 ),
+            &format_number( &counter_per_second( 'innodb_s_lock_os_waits' ), 1, 5 ),
 
             &format_number( &counter_per_second( 'innodb_x_lock_spin_waits' ), 1, 5 ),
             &format_number( &counter_per_second( 'innodb_x_lock_spin_rounds' ), 1, 5 ),
-            &format_number( &counter_per_second( 'innodb_x_lock_oswaits' ), 1, 5 ),
+            &format_number( &counter_per_second( 'innodb_x_lock_os_waits' ), 1, 5 ),
+
+            &format_number( &counter_per_second( 'innodb_mutex_spin_waits' ), 1, 5 ),
+            &format_number( &counter_per_second( 'innodb_mutex_spin_rounds' ), 1, 5 ),
+            &format_number( &counter_per_second( 'innodb_mutex_os_waits' ), 1, 5 ),
         );    
     } elsif( $MODE eq 'innodb_hist' ) {
                 printf( "Innodb Purging %16s\n", "Txns Diff"
