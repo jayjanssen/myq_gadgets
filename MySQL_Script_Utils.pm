@@ -16,6 +16,7 @@ use vars qw/ $DEBUG $HELP $USER $PASS $HOST $PORT %DEFAULT_OPTIONS
 @ISA = qw/ Exporter /;
 @EXPORT = qw/ $HOST &parse_options &print_debug &mysql_call 
               &format_number &format_percent &format_memory
+							&format_microseconds
               $DEFAULT_OPTIONS_STRING
             /;
 
@@ -43,58 +44,86 @@ sub print_debug {
     print STDERR "DEBUG: $string\n";
 }
 
+sub raw_format_number {
+  my( $units, $num, $sig, $max_len, $debug ) = @_;
+	
+  my $format = "%." . $sig . "f";
+	print "Num: $num\n" if $debug;
+	
+	foreach my $factor( sort {$b <=> $a} keys %$units ) {
+		my $raw = $num / $factor;
+		
+		print "Trying factor: $factor, $raw\n" if $debug;
+		
+		if( $raw > 1 ) {
+			# These are our units
+			my $string = sprintf( $format, $raw );
+			
+			my $left = $max_len - (length( $string ) + length( $units->{$factor}));
+			if( $left < 0 ) {
+				print "\tcan we pare down the sig?\n" if $debug;
+				# Return a pared down $sig or what we've got (may not fit in $max_len)
+				$sig > 0 ?
+					return &raw_format_number( $units, $num, $sig - length( $units->{$factor}), $max_len, $debug ) :
+					return $string . $units->{$factor};
+			} elsif( $left >= 2 ) {
+				print "\tadd some decimal places\n" if $debug;
+				
+				# Add some decimal places
+				my $decimal = $left - 1;
+				return sprintf( "%." . $decimal . "f" . $units->{$factor}, $raw );
+			} else {
+				return $string . $units->{$factor};
+			}
+		}
+		# Else, try the next smaller factor
+	}
+	
+	# if we get here, we have no factor
+	my $string = sprintf( $format, $num );
+	print "Using $string\n" if $debug;
+	
+  if( length( $string ) <= $max_len ) {
+		return $string;
+  } else {
+      $sig > 0 ? 
+					return &raw_format_number( $units, $num, $sig - 1, $max_len, $debug ) :
+          return $string;
+  }
+}
+
 sub format_number {
-    my( $num, $sig, $max_len, $debug ) = @_;
+		my %units = (
+			1000 => 'k',
+			1000000 => 'm',
+			1000000000 => 'g'
+		);
+		
+		return &raw_format_number( \%units, @_ );
+}
 
-    # return 0 if( $num <= 0 );
+sub format_memory {
+	my %units = (
+		1024 => 'K',
+		1048576 => 'M',
+		1073741824 => 'G',
+		1099511627776 => 'T'
+	);
+	
+	return &raw_format_number( \%units, @_ );
+}
 
-    my $format = "%." . $sig . "f";
-
-    my $raw_kilo = $num / 1000;
-    my $raw_mega = $raw_kilo / 1000;
-    my $raw_giga = $raw_mega / 1000;
-
-    my $kilo = sprintf( $format, $raw_kilo );
-    my $mega = sprintf( $format, $raw_mega );
-    my $giga = sprintf( $format, $raw_giga );
-    my $one = sprintf( $format, $num );
-
-    print "$giga, $mega, $kilo, $one\n" if( $debug );
-
-    if( $raw_giga >= 1 ) {
-        if( length( $giga ) < $max_len ) {
-            return $giga . 'g';
-        } else {
-            $sig > 0 ? 
-                return &format_number( $num, $sig - 1, $max_len, $debug ) :
-                return $giga . 'g';
-        }
-    } elsif( $raw_mega >= 1 ) {
-        if( length( $mega ) < $max_len ) {
-            return $mega . 'm';
-        } else {
-            $sig > 0 ? 
-                return &format_number( $num, $sig - 1, $max_len, $debug ) :
-                return $mega . 'm';
-        }
-    } elsif( $raw_kilo >= 1 ) {
-        if( length( $kilo ) < $max_len ) {
-            return $kilo . 'k';
-        } else {
-            $sig > 0 ? 
-                return &format_number( $num, $sig - 1, $max_len, $debug ) :
-                return $kilo . 'k';
-        }
-    } else {
-        if( length( $one ) <= $max_len ) {
-            return $one;
-        } else {
-            $sig > 0 ? 
-                return &format_number( $num, $sig - 1, $max_len, $debug ) :
-                return $one;
-        }
-
-    }
+# Takes microsecons
+sub format_microseconds {
+	my %units = (
+		1000000000 => 'ks',
+		1000000 => 's',
+		1000 => 'ms',
+		1 => 'µs',
+		
+	);
+	
+	return &raw_format_number( \%units, @_ );
 }
 
 sub format_percent {
@@ -113,72 +142,6 @@ sub format_percent {
     }
 
     return "$raw%";
-}
-
-sub format_memory {
-    my( $num, $sig, $max_len, $debug ) = @_;
-
-    return 0 if( $num <= 0 );
-
-    my $format = "%." . $sig . "f";
-
-    my $raw_kilo = $num / (2**10);
-    my $raw_mega = $num / (2**20) ;
-    my $raw_giga = $num / (2**30);
-    my $raw_tera = $num / (2**40);
-
-    my $kilo = sprintf( $format, $raw_kilo );
-    my $mega = sprintf( $format, $raw_mega );
-    my $giga = sprintf( $format, $raw_giga );
-    my $tera = sprintf( $format, $raw_tera );
-    my $one = sprintf( $format, $num );
-
-    print "$tera, $giga, $mega, $kilo, $one\n" if( $debug );
-
-    if( $raw_tera >= 1 ) {
-        if( length( $tera ) < $max_len ) {
-            return $tera . 'T';
-        } else {
-            $sig > 0 ?
-                return &format_memory( $num, $sig - 1, $max_len, $debug ) :
-                return $tera . 'T';
-        }
-    } elsif( $raw_giga >= 1 ) {
-        if( length( $giga ) < $max_len ) {
-            return $giga . 'G';
-        } else {
-            $sig > 0 ?
-                return &format_memory( $num, $sig - 1, $max_len, $debug ) :
-                return $giga . 'G';
-        }
-    } elsif( $raw_mega >= 1 ) {
-        if( length( $mega ) < $max_len ) {
-            return $mega . 'M';
-        } else {
-            $sig > 0 ?
-                return &format_memory( $num, $sig - 1, $max_len, $debug ) :
-                return $mega . 'M';
-        }
-    } elsif( $raw_kilo >= 1 ) {
-        if( length( $kilo ) < $max_len ) {
-            return $kilo . 'K';
-        } else {
-            $sig > 0 ?
-                return &format_memory( $num, $sig - 1, $max_len, $debug ) :
-                return $kilo . 'K';
-        }
-    } else {
-        if( length( $one ) <= $max_len ) {
-            return $one;
-        } else {
-            $sig > 0 ?
-                return &format_memory( $num, $sig - 1, $max_len, $debug ) :
-                return $one;
-        }
-
-    }
-
-
 }
 
 
