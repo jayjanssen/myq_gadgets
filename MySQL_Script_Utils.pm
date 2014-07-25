@@ -5,6 +5,7 @@
 package MySQL_Script_Utils;
 
 use strict;
+use utf8;
 
 use Exporter;
 use Getopt::Long qw/ :config no_ignore_case /;
@@ -47,7 +48,8 @@ sub print_debug {
 sub raw_format_number {
   my( $units, $num, $sig, $max_len, $debug ) = @_;
 	
-  my $format = "%." . $sig . "f";
+	$sig = 0 if( $sig < 0 );
+	
 	print "Num: $num\n" if $debug;
 	
 	foreach my $factor( sort {$b <=> $a} keys %$units ) {
@@ -57,30 +59,32 @@ sub raw_format_number {
 		
 		if( $raw > 1 ) {
 			# These are our units
-			my $string = sprintf( $format, $raw );
+			my $string = sprintf( "%." . $sig . "f%s", $raw, $units->{$factor} );
 			
-			my $left = $max_len - (length( $string ) + length( $units->{$factor}));
+			my $left = $max_len - length( $string );
 			if( $left < 0 ) {
 				print "\tcan we pare down the sig?\n" if $debug;
 				# Return a pared down $sig or what we've got (may not fit in $max_len)
 				$sig > 0 ?
 					return &raw_format_number( $units, $num, $sig - length( $units->{$factor}), $max_len, $debug ) :
-					return $string . $units->{$factor};
-			} elsif( $left >= 2 ) {
+					return $string;
+			} elsif( $left > 1 ) {
 				print "\tadd some decimal places\n" if $debug;
 				
 				# Add some decimal places
 				my $decimal = $left - 1;
 				return sprintf( "%." . $decimal . "f" . $units->{$factor}, $raw );
 			} else {
-				return $string . $units->{$factor};
+				print "\tas is\n" if $debug;
+				
+				return $string;
 			}
 		}
 		# Else, try the next smaller factor
 	}
 	
 	# if we get here, we have no factor
-	my $string = sprintf( $format, $num );
+	my $string = sprintf( "%." . $sig . "f", $num );
 	print "Using $string\n" if $debug;
 	
   if( length( $string ) <= $max_len ) {
