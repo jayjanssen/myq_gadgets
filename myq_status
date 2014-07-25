@@ -6,6 +6,11 @@
 
 use strict;
 
+# Enable unicode output (microseconds units designator)
+use utf8;
+binmode(STDOUT, ":utf8");
+
+
 use FindBin;
 use lib "$FindBin::Bin";
 
@@ -149,7 +154,8 @@ myq_status  [-d] [-?] [-u user [-p [pass]]] [-h host] [-P <port>] [-t <secs>] [-
   MODE  'myisam', 'innodb', 'innodb_buffer_pool', 'innodb_io',
         'innodb_log', 'innodb_row', 'innodb_flush', 'innodb_hash',
         'innodb_waits', 'innodb_hist', 'coms', 'commands', 'qcache',
-        'cttf', 'throughput', 'query', 'temp', 'handler', 'wsrep'
+        'cttf', 'throughput', 'query', 'temp', 'handler', 'wsrep',
+        'wsrep_latency',
 
 USAGE
 
@@ -160,7 +166,7 @@ if( !&parse_options( \%options ) or $#ARGV > 0 ) {
 
 $MODE = shift @ARGV if( $#ARGV == 0 );
 
-die $usage if( $MODE !~ m/coms|myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|innodb_hist|commands|qcache|cttf|throughput|query|temp|handler|wsrep/ );
+die $usage if( $MODE !~ m/coms|myisam|innodb|innodb_buffer_pool|innodb_io|innodb_log|innodb_row|innodb_flush|innodb_hash|innodb_waits|innodb_hist|commands|qcache|cttf|throughput|query|temp|handler|wsrep|wsrep_latency/ );
 
 die "Repeat time must be at least 1 seconds\n" if( $REPEAT_TIME < 1 );
 
@@ -691,8 +697,8 @@ sub process_global_status {
 	        ) if( $count % $lines_per_header == 0 );
 	        printf( "%-8s %-8s %-4s %-5s %-9s %-9s %-9s %-8s %-8s %-7s\n", "Wsrep", "Cluster", "Node", "Repl", "Queue", "Ops", "Bytes", "Flow", "Conflct", 'Cert'
 	        ) if( $count % $lines_per_header == 0 );
-	        printf( "%8s %1s %3s %2s %-4.4s %5s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %3s %4s %4s\n",
-	            'time', 'P', 'cnf', '#', 'State', 'Laten', 'Up', 'Dn', 'Up', 'Dn', 'Up' , 'Dn', 'p_ms', 'snt', 'lcf', 'bfa', 'dst', 'idx'
+	        printf( "%8s %1s %3s %2s %-4.4s %5s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %4s %3s %4s %4s\n",
+	            'time', 'P', 'cnf', '#', 'State', 'Laten', 'Up', 'Dn', 'Up', 'Dn', 'Up' , 'Dn', 'p_ms', 'snt', 'lcf', 'bfa', 'idx', 'dst', 'appl', 'comm'
 	        ) if( $count % $lines_per_header == 0 );
 
 	        $status->{'wsrep_local_state_comment'} =~ s/\s+\(.+\)$//;
@@ -702,7 +708,7 @@ sub process_global_status {
 						$avg = $1 * 1000000; #(put to micro secs)
 					}
 
-	        printf( "%8s %1s %3s %2s %4.4s %5s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %3s %4s %4s",
+	        printf( "%8s %1s %3s %2s %4.4s %5s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %4s %3s %4s %4s",
 	            $pretty_time,
 	            ($status->{'wsrep_cluster_status'} eq 'Primary' ? 'P' : 'N'),
 							substr( $status->{'wsrep_cluster_conf_id'}, -3, 3 ),
@@ -710,7 +716,7 @@ sub process_global_status {
 
 	            $status->{'wsrep_local_state_comment'},
 							
-	            &format_microseconds( $avg, 0, 5 ),
+	            &format_microseconds( $avg, 0, 5 ),							
 
 	            &format_number( $status->{'wsrep_local_send_queue'}, 0, 4 ),
 	            &format_number( $status->{'wsrep_local_recv_queue'}, 0, 4 ),
@@ -732,14 +738,54 @@ sub process_global_status {
 	            &format_number( &counter_diff( 'wsrep_local_cert_failures' ), 0, 3 ),
 	            &format_number( &counter_diff( 'wsrep_local_bf_aborts' ), 0, 3 ),
 							
-	            &format_number( $status->{'wsrep_cert_deps_distance'}, 0, 3 ),
 	            &format_number( $status->{'wsrep_cert_index_size'}, 0, 4 ),
-						
+	            &format_number( $status->{'wsrep_cert_deps_distance'}, 0, 3 ),
+	            &format_number( $status->{'wsrep_apply_window'}, 0, 4 ),
 							
-							
-
-
+	            &format_number( $status->{'wsrep_commit_window'}, 0, 4 ),
 	        );
+					
+					# This helps keep things like wsrep_apply_window and others fresh for Galera polling
+					&mysql_call( "FLUSH STATUS" );
+
+    } elsif( $MODE eq 'wsrep_latency' ) {
+        printf( "%s / %s (idx: %d) / %s %s\n", $variables->{'wsrep_cluster_name'}, $variables->{'wsrep_node_name'}, $status->{'wsrep_local_index'}, $status->{'wsrep_provider_name'}, $status->{'wsrep_provider_version'}
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%-8s %-8s %-4s %-11s %-9s\n", "Wsrep", "Cluster", "Node", "Ops", "Latencies",
+        ) if( $count % $lines_per_header == 0 );
+        printf( "%8s %1s %3s %2s %-4.4s %5s %5s %4s %6s %6s %6s %6s\n",
+            'time', 'P', 'cnf', '#', 'State', 'Up', 'Dn', 'Size', 'Min', 'Avg', 'Max', 'Dev'
+        ) if( $count % $lines_per_header == 0 );
+
+        $status->{'wsrep_local_state_comment'} =~ s/\s+\(.+\)$//;
+			
+				my ($min,$avg,$max,$dev,$size) = (0,0,0,0,0);
+				if( $status->{'wsrep_evs_repl_latency'} =~ m|(\d+\.\d+)\/(\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+)/(\d+)| ) {
+					$min = $1 * 1000000; #(put to micro secs)
+					$avg = $2 * 1000000; #(put to micro secs)
+					$max = $3 * 1000000; #(put to micro secs)
+					$dev = $4 * 1000000; #(put to micro secs)
+					$size = $5; 
+				}
+
+        printf( "%8s %1s %3s %2s %4.4s %5s %5s %4s %6s %6s %6s %6s",
+            $pretty_time,
+            ($status->{'wsrep_cluster_status'} eq 'Primary' ? 'P' : 'N'),
+						substr( $status->{'wsrep_cluster_conf_id'}, -3, 3 ),
+						&format_number( $status->{'wsrep_cluster_size'}, 0, 2 ),
+
+            $status->{'wsrep_local_state_comment'},
+						
+            &format_number( &counter_diff( 'wsrep_replicated' ), 0, 5 ),
+						&format_number( &counter_diff( 'wsrep_received' ), 0, 5 ),
+						
+						&format_number( $size, 0, 4),
+					
+						&format_microseconds( $min, 0, 6 ),
+						&format_microseconds( $avg, 0, 6 ),
+						&format_microseconds( $max, 0, 6 ),
+						&format_microseconds( $dev, 0, 6 ),
+        );
 	    }
 
 
