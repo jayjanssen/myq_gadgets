@@ -703,11 +703,16 @@ sub process_global_status {
 
 	        $status->{'wsrep_local_state_comment'} =~ s/\s+\(.+\)$//;
 					
-					my $avg = 0;
-					if( $status->{'wsrep_evs_repl_latency'} =~ m|\d+\.\d+\/(\d+\.\d+)| ) {
-						$avg = $1 * 1000000; #(put to micro secs)
+					my $avg = undef;
+					if( defined( $status->{'wsrep_evs_repl_latency'})) {
+						my @latencies = split( '/', $status->{'wsrep_evs_repl_latency'});
+						if( $latencies[1] =~ m|(\d+\.\d+)e-(\d+)| ) {
+							$avg = ($1 * (10** ($2 * - 1))) * 1000000;
+						} elsif( $latencies[1] =~ m|^\d+\.\d+\/(\d+\.\d+)| ) {
+							$avg = $1 * 1000000; #(put to micro secs)
+						}
 					}
-
+					
 	        printf( "%8s %1s %3s %2s %4.4s %5s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %4s %3s %4s %4s",
 	            $pretty_time,
 	            ($status->{'wsrep_cluster_status'} eq 'Primary' ? 'P' : 'N'),
@@ -716,7 +721,7 @@ sub process_global_status {
 
 	            $status->{'wsrep_local_state_comment'},
 							
-	            &format_microseconds( $avg, 0, 5 ),							
+	            defined $avg ? &format_microseconds( $avg, 0, 5 ) : 'N/A',
 
 	            &format_number( $status->{'wsrep_local_send_queue'}, 0, 4 ),
 	            &format_number( $status->{'wsrep_local_recv_queue'}, 0, 4 ),
