@@ -708,7 +708,7 @@ sub process_global_status {
 						my @latencies = split( '/', $status->{'wsrep_evs_repl_latency'});
 						if( $latencies[1] =~ m|(\d+\.\d+)e-(\d+)| ) {
 							$avg = ($1 * (10** ($2 * - 1))) * 1000000;
-						} elsif( $latencies[1] =~ m|^\d+\.\d+\/(\d+\.\d+)| ) {
+						} elsif( $latencies[1] =~ m|^(\d+\.\d+)| ) {
 							$avg = $1 * 1000000; #(put to micro secs)
 						}
 					}
