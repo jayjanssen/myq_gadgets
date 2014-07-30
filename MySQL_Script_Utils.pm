@@ -52,14 +52,14 @@ sub raw_format_number {
 	
 	print "Num: $num\n" if $debug;
 	
-	foreach my $factor( sort {$b <=> $a} keys %$units ) {
+	foreach my $factor( sort keys %$units ) {
 		my $raw = $num / $factor;
 		
 		print "Trying factor: $factor, $raw\n" if $debug;
+		my $string = sprintf( "%." . $sig . "f%s", $raw, $units->{$factor} );
 		
-		if( $raw > 1 ) {
+		if( $raw != 0 and length( $string ) <= $max_len ) {
 			# These are our units
-			my $string = sprintf( "%." . $sig . "f%s", $raw, $units->{$factor} );
 			
 			my $left = $max_len - length( $string );
 			if( $left < 0 ) {
@@ -68,12 +68,12 @@ sub raw_format_number {
 				$sig > 0 ?
 					return &raw_format_number( $units, $num, $sig - length( $units->{$factor}), $max_len, $debug ) :
 					return $string;
-			} elsif( $left > 1 ) {
-				print "\tadd some decimal places\n" if $debug;
-				
-				# Add some decimal places
-				my $decimal = $left - 1;
-				return sprintf( "%." . $decimal . "f" . $units->{$factor}, $raw );
+			# } elsif( $left > 1 ) {
+			# 	print "\tadd some decimal places\n" if $debug;
+			#
+			# 	# Add some decimal places
+			# 	my $decimal = $left - 1;
+			# 	return sprintf( "%." . $decimal . "f" . $units->{$factor}, $raw );
 			} else {
 				print "\tas is\n" if $debug;
 				
@@ -98,6 +98,7 @@ sub raw_format_number {
 
 sub format_number {
 		my %units = (
+			1 => '',
 			1000 => 'k',
 			1000000 => 'm',
 			1000000000 => 'g'
@@ -108,6 +109,7 @@ sub format_number {
 
 sub format_memory {
 	my %units = (
+		1 => 'b',
 		1024 => 'K',
 		1048576 => 'M',
 		1073741824 => 'G',
