@@ -68,12 +68,12 @@ sub raw_format_number {
 				$sig > 0 ?
 					return &raw_format_number( $units, $num, $sig - length( $units->{$factor}), $max_len, $debug ) :
 					return $string;
-			# } elsif( $left > 1 ) {
-			# 	print "\tadd some decimal places\n" if $debug;
-			#
-			# 	# Add some decimal places
-			# 	my $decimal = $left - 1;
-			# 	return sprintf( "%." . $decimal . "f" . $units->{$factor}, $raw );
+			} elsif( $left > 1 ) {
+				print "\tadd some decimal places\n" if $debug;
+		
+				# Add some decimal places
+				my $decimal = $left - 1;
+				return sprintf( "%." . $decimal . "f" . $units->{$factor}, $raw );
 			} else {
 				print "\tas is\n" if $debug;
 				
