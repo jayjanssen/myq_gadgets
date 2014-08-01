@@ -58,7 +58,7 @@ sub raw_format_number {
 		print "Trying factor: $factor, $raw\n" if $debug;
 		my $string = sprintf( "%." . $sig . "f%s", $raw, $units->{$factor} );
 		
-		if( $raw != 0 and length( $string ) <= $max_len ) {
+		if( $raw != 0 and length( $string ) <= $max_len + $sig ) {
 			# These are our units
 			
 			my $left = $max_len - length( $string );
@@ -66,7 +66,7 @@ sub raw_format_number {
 				print "\tcan we pare down the sig?\n" if $debug;
 				# Return a pared down $sig or what we've got (may not fit in $max_len)
 				$sig > 0 ?
-					return &raw_format_number( $units, $num, $sig - length( $units->{$factor}), $max_len, $debug ) :
+					return &raw_format_number( $units, $num, $sig - 1, $max_len, $debug ) :
 					return $string;
 			} elsif( $left > 1 ) {
 				print "\tadd some decimal places\n" if $debug;
