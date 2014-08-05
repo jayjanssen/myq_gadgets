@@ -55,11 +55,11 @@ sub raw_format_number {
 	foreach my $factor( sort keys %$units ) {
 		my $raw = $num / $factor;
 		
-		print "Trying factor: $factor, $raw\n" if $debug;
 		my $string = sprintf( "%." . $sig . "f%s", $raw, $units->{$factor} );
+		print "Trying factor: $factor, $raw => $string\n" if $debug;
 		
 		if( $raw != 0 and length( $string ) <= $max_len + $sig ) {
-			# These are our units
+			print "\tThese are our units\n" if $debug;
 			
 			my $left = $max_len - length( $string );
 			if( $left < 0 ) {
@@ -68,7 +68,7 @@ sub raw_format_number {
 				$sig > 0 ?
 					return &raw_format_number( $units, $num, $sig - 1, $max_len, $debug ) :
 					return $string;
-			} elsif( $left > 1 ) {
+			} elsif( $left > 1 and $factor ne 1 ) {
 				print "\tadd some decimal places\n" if $debug;
 		
 				# Add some decimal places
