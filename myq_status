@@ -750,8 +750,10 @@ sub process_global_status {
 	            &format_number( $status->{'wsrep_commit_window'}, 0, 4 ),
 	        );
 					
+                if ($status->{'wsrep_cluster_status'} eq 'Primary') {
 					# This helps keep things like wsrep_apply_window and others fresh for Galera polling
 					&mysql_call( "FLUSH STATUS" );
+                }
 
     } elsif( $MODE eq 'wsrep_latency' ) {
         printf( "%s / %s (idx: %d) / %s %s\n", $variables->{'wsrep_cluster_name'}, $variables->{'wsrep_node_name'}, $status->{'wsrep_local_index'}, $status->{'wsrep_provider_name'}, $status->{'wsrep_provider_version'}
