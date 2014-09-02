@@ -695,10 +695,10 @@ sub process_global_status {
 	    } elsif( $MODE eq 'wsrep' ) {
 	        printf( "%s / %s (idx: %d) / %s %s\n", $variables->{'wsrep_cluster_name'}, $variables->{'wsrep_node_name'}, $status->{'wsrep_local_index'}, $status->{'wsrep_provider_name'}, $status->{'wsrep_provider_version'}
 	        ) if( $count % $lines_per_header == 0 );
-	        printf( "%-8s %-8s %-4s %-5s %-9s %-9s %-9s %-8s %-8s %-7s\n", "Wsrep", "Cluster", "Node", "Repl", "Queue", "Ops", "Bytes", "Flow", "Conflct", 'Cert'
+	        printf( "%-8s %-8s %-4s %-5s %-9s %-9s %-9s %-9s %-8s %-9s %-8s\n", "Wsrep", "Cluster", "Node", "Repl", "Queue", "Ops", "Bytes", "Conflct", 'Cert', 'Window', 'Flow'
 	        ) if( $count % $lines_per_header == 0 );
-	        printf( "%8s %1s %3s %2s %-4.4s %5s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %4s %3s %4s %4s\n",
-	            'time', 'P', 'cnf', '#', 'State', 'Laten', 'Up', 'Dn', 'Up', 'Dn', 'Up' , 'Dn', 'p_ms', 'snt', 'lcf', 'bfa', 'idx', 'dst', 'appl', 'comm'
+	        printf( "%8s %1s %3s %2s %-4.4s %5s %4s %4s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %5s\n",
+	            'time', 'P', 'cnf', '#', 'State', 'Laten', 'Up', 'Dn', 'Up', 'Dn', 'Up' , 'Dn', 'lcf', 'bfa', 'idx', 'dst', 'appl', 'comm', 'p_ms'
 	        ) if( $count % $lines_per_header == 0 );
 
 	        $status->{'wsrep_local_state_comment'} =~ s/\s+\(.+\)$//;
@@ -713,7 +713,7 @@ sub process_global_status {
 						}
 					}
 					
-	        printf( "%8s %1s %3s %2s %4.4s %5s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %4s %3s %4s %4s",
+	        printf( "%8s %1s %3s %2s %4.4s %5s %4s %4s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %5s%s",
 	            $pretty_time,
 	            ($status->{'wsrep_cluster_status'} eq 'Primary' ? 'P' : 'N'),
 							substr( $status->{'wsrep_cluster_conf_id'}, -3, 3 ),
@@ -732,14 +732,6 @@ sub process_global_status {
 	            &format_memory( &counter_diff( 'wsrep_replicated_bytes' ), 1, 4 ),
 	            &format_memory( &counter_diff( 'wsrep_received_bytes' ), 1, 4 ),
 
-							$variables->{version} =~ m/^5.5/ ?
-								&format_number( $status->{'wsrep_flow_control_paused'}, 1, 4 ) :
-								&format_number( &counter_diff( 'wsrep_flow_control_paused_ns' ) / 1000000, 0, 4 ),
-		
-                $variables->{version} =~ m/^5.5/ ?
-                         &format_number( $status->{'wsrep_flow_control_sent'}, 0, 3 ) :
-                         &format_number( &counter_diff( 'wsrep_flow_control_sent' ), 0, 3 ),
-
 	            &format_number( &counter_diff( 'wsrep_local_cert_failures' ), 0, 3 ),
 	            &format_number( &counter_diff( 'wsrep_local_bf_aborts' ), 0, 3 ),
 							
@@ -748,6 +740,14 @@ sub process_global_status {
 	            &format_number( $status->{'wsrep_apply_window'}, 0, 4 ),
 							
 	            &format_number( $status->{'wsrep_commit_window'}, 0, 4 ),
+
+				$variables->{version} =~ m/^5.5/ ?
+					&format_number( $status->{'wsrep_flow_control_paused'}, 1, 4 ) :
+					&format_number( &counter_diff( 'wsrep_flow_control_paused_ns' ) / 1000000, 0, 4 ),
+		
+                $variables->{version} =~ m/^5.5/ ?
+                         ( &format_number( $status->{'wsrep_flow_control_sent'}, 0, 3 ) > 0 ? '*' : '' ) :
+                         ( &format_number( &counter_diff( 'wsrep_flow_control_sent' ), 0, 3 ) > 0 ? '*' : '' ),
 	        );
 					
                 if ($status->{'wsrep_cluster_status'} eq 'Primary') {
