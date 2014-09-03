@@ -712,7 +712,9 @@ sub process_global_status {
 							$avg = $1 * 1000000; #(put to micro secs)
 						}
 					}
-					
+			my $ist_size = $status->{'wsrep_last_committed'} - $status->{'wsrep_local_cached_downto'};
+			$ist_size = 0 if $ist_size < 0;
+
 	        printf( "%8s %1s %3s %2s %4.4s %5s %4s %4s %4s %4s %4s %4s %4s %4s %4s %4s %3s %4s %4s %5s%s",
 	            $pretty_time,
 	            ($status->{'wsrep_cluster_status'} eq 'Primary' ? 'P' : 'N'),
@@ -735,7 +737,7 @@ sub process_global_status {
 	            &format_number( &counter_diff( 'wsrep_local_cert_failures' ), 0, 3 ),
 	            &format_number( &counter_diff( 'wsrep_local_bf_aborts' ), 0, 3 ),
 							
-	            &format_number( ($status->{'wsrep_last_committed'} - $status->{'wsrep_local_cached_downto'}), , 0, 4 ),
+	            &format_number( ( $ist_size ), , 0, 4 ),
 	            &format_number( $status->{'wsrep_cert_index_size'}, 0, 4 ),
 	            &format_number( $status->{'wsrep_cert_deps_distance'}, 0, 3 ),
 	            &format_number( $status->{'wsrep_apply_window'}, 0, 4 ),
