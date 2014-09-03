@@ -753,7 +753,8 @@ sub process_global_status {
                          ( &format_number( &counter_diff( 'wsrep_flow_control_sent' ), 0, 3 ) > 0 ? '*' : '' ),
 	        );
 					
-                if ($status->{'wsrep_cluster_status'} eq 'Primary') {
+                if ($status->{'wsrep_cluster_status'} eq 'Primary' and 
+					$status->{'wsrep_local_state_comment'} !~ m/^Join/ ) {
 					# This helps keep things like wsrep_apply_window and others fresh for Galera polling
 					&mysql_call( "FLUSH STATUS" );
                 }
