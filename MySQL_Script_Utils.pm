@@ -12,6 +12,7 @@ use Getopt::Long qw/ :config no_ignore_case /;
 
 use vars qw/ $DEBUG $HELP $USER $PASS $HOST $PORT %DEFAULT_OPTIONS 
              $PASSWORD_ON @ISA @EXPORT $DEFAULT_OPTIONS_STRING
+			 $LOGIN_PATH
            /;
 
 @ISA = qw/ Exporter /;
@@ -24,14 +25,15 @@ use vars qw/ $DEBUG $HELP $USER $PASS $HOST $PORT %DEFAULT_OPTIONS
 
 $DEBUG = 0;
 $HELP = 0;
-$HOST = '';
+$PASS = '';
 
 warn "'mysql' binary not found in your \$PATH\n" if !`which mysql`;
 
-$DEFAULT_OPTIONS_STRING = " [-d] [-?] [-u user [-p [pass]]] [-h host] [-P <port>]";
+$DEFAULT_OPTIONS_STRING = " [-d] [-?] [--login-path=<login_path>] [-u <user> [-p [<pass>]]] [-h <host>] [-P <port>]";
 my %DEFAULT_OPTIONS = (
     'help|?' => \$HELP,
     'debug|d' => \$DEBUG,
+    'login-path=s' => \$LOGIN_PATH,
     'host|h=s' => \$HOST,
     'P=i' => \$PORT,
     'user|u=s' => \$USER,
@@ -153,7 +155,8 @@ sub format_percent {
 
 sub parse_options {
     my( $options ) = @_;
-    $PASSWORD_ON = grep( /-p/, @ARGV );
+
+    $PASSWORD_ON = grep( /^-p$/, @ARGV );
 
     my $opt_res = GetOptions( (%DEFAULT_OPTIONS, %$options) );
 
@@ -165,8 +168,9 @@ sub parse_options {
 
 
 sub mysql_call {
-    my ( $sql, $user, $pass, $host, $port ) = ('', '', '', '', '' );
-    ( $sql, $host, $port ) = @_;
+    my ( $sql, $host, $port ) = @_;
+	$host = $HOST unless defined $host;
+	$port = $PORT unless defined $port;
 
     # Prompt for a password the first time we need it, and only if -p was 
     # given on the command line (could be passwordless)
@@ -178,29 +182,24 @@ sub mysql_call {
         print "\n";
     }
 
-    if( $host eq '' ) {
-        $host = $HOST;
-    }
-    if( $port eq '' ) {
-        $port = $PORT;
-    }
-    if( $user eq '' ) {
-        $user = $USER;
-    }
-    if( $pass eq '' ) {
-        $pass = $PASS;
-    }
 
-    my ( $user_str, $pass_str, $host_str, $port_str ) = ('', '', '', '', '' );
+	my $command = "mysql";
 
-    $user_str = ' --user=' . $user if( $user ne '' );
-    $pass_str = ' \'--password=' . $pass . '\'' if( $pass ne '' );
-    $host_str = ' --host=' . $host if( $host ne '' );
-    $port_str = ' --port=' . $port if( $port ne '' );
+	if( defined( $LOGIN_PATH )) {
+    	$command .= ' --login-path=' . $LOGIN_PATH if defined( $LOGIN_PATH );
+		# No other options should matter
+	} else {
+		$command .= ' --user=' . $USER if defined $USER;
+		$command .= ' \'--password=' . $PASS . '\'' if $PASS ne '';
+		$command .= ' --host=' . $host if defined $host;
+		$command .= ' --port=' . $port if defined $port;
+	}
 
-    &print_debug( "echo \"$sql\" | mysql $user_str $pass_str $host_str $port_str" );
-    my @output = `echo "$sql" | mysql $user_str $pass_str $host_str $port_str`;
+	$command .= " 2>&1";
 
+    &print_debug( "echo \"$sql\" | $command" );
+    my @output = grep( !/^Warning/, (`echo "$sql" | $command`));
+	
     my $rc = $? >> 8;
     if( $rc ) {
         die "Error accessing mysql\n";
