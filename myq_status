@@ -841,21 +841,28 @@ unless( defined( $FILENAME )) {
     }
         
     my @output = ();
+	my $skip = 0;
     while( my $line = <FILE> ) {
         unless( $line =~ m/^\n/ ) {
             push( @output, $line );
         } else {
             # Blank line
-            $status = &parse_mysqladmin_status( \@output );
+			if( $skip == 0 ) {
+	            $status = &parse_mysqladmin_status( \@output );
             
-            $first_uptime = $status->{'uptime'} unless defined $first_uptime;
+	            $first_uptime = $status->{'uptime'} unless defined $first_uptime;
             
-            my $pretty_time = sprintf( "%8d", $status->{'uptime'} - $first_uptime );
+	            my $pretty_time = sprintf( "%8d", $status->{'uptime'} - $first_uptime );
             
-            &process_global_status( $count, $pretty_time );
+	            &process_global_status( $count, $pretty_time );
         
-            $prev_status = $status;
-            
+	            $prev_status = $status;
+				
+				$skip = $REPEAT_TIME; # set skip to the number of seconds to repeat 
+            } else {
+            	$skip--;
+            }
+			
             @output = ();
                         
             $count++;
