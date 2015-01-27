@@ -7,7 +7,25 @@
 use strict;
 
 use FindBin;
-use lib "$FindBin::RealBin";
+
+
+# Users can symlink this script and it will still add the correct locations to 
+# perls path using FindBin::RealBin, but to ensure compatibility with old perl
+# we need to be a bit more clever    
+sub get_lib {
+    # Start with a sensible default
+    my $bin_path = $FindBin::Bin;
+    {
+        no warnings 'uninitialized';
+        my $real_path="$FindBin::RealBin";   #This may fail on Perl < 5.10
+        if ($real_path ne ''){               # if the value is set, we'll use it
+            $bin_path = $real_path;
+        }
+    }
+    return $bin_path;
+}
+
+use lib get_lib();
 
 use MySQL_Script_Utils;
 
